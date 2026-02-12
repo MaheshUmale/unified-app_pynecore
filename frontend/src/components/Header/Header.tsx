@@ -1,5 +1,5 @@
-import React from 'react';
-import { Search, Moon, Sun, LayoutGrid } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Moon, Sun, LayoutGrid, ChevronDown, BarChart2, TrendingUp, Hash, Activity } from 'lucide-react';
 import type { ChartType } from '../../types/chart';
 
 interface HeaderProps {
@@ -21,11 +21,11 @@ const timeframes = [
   { label: '1H', value: '60' },
   { label: '1D', value: 'D' },
 ];
-const chartTypes: { label: string; value: ChartType }[] = [
-  { label: 'Candle', value: 'candle' },
-  { label: 'Line', value: 'line' },
-  { label: 'Renko', value: 'renko' },
-  { label: 'Range', value: 'range' },
+const chartTypes: { label: string; value: ChartType; icon: any }[] = [
+  { label: 'Candle', value: 'candle', icon: BarChart2 },
+  { label: 'Line', value: 'line', icon: TrendingUp },
+  { label: 'RENKO CANDLESTICKS', value: 'renko', icon: Hash },
+  { label: 'RANGEBAR', value: 'range', icon: Activity },
 ];
 
 const Header: React.FC<HeaderProps> = ({
@@ -38,33 +38,38 @@ const Header: React.FC<HeaderProps> = ({
   isDarkMode,
   toggleDarkMode,
 }) => {
+  const [showChartTypes, setShowChartTypes] = useState(false);
+  const CurrentChartIcon = chartTypes.find(ct => ct.value === chartType)?.icon || BarChart2;
+
   return (
-    <header className="h-14 border-b border-tv-border bg-tv-bg flex items-center px-4 justify-between">
-      <div className="flex items-center gap-4">
-        <div className="text-blue-500 font-bold text-xl tracking-tighter">
+    <header className="h-14 border-b border-tv-border bg-tv-bg flex items-center px-4 justify-between select-none">
+      <div className="flex items-center">
+        <div className="text-blue-500 font-bold text-xl tracking-tighter mr-6">
           UNIFIED<span className="text-white">APP</span>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tv-text/50" />
-          <input
-            type="text"
-            value={symbol}
-            onChange={(e) => onSymbolChange(e.target.value)}
-            className="bg-[#1e222d] text-tv-text text-sm rounded border border-tv-border pl-10 pr-4 py-1.5 focus:outline-none focus:border-blue-500 w-48"
-            placeholder="Search Symbol..."
-          />
+        <div className="relative group">
+          <div className="flex items-center bg-[#1e222d] rounded border border-tv-border px-3 py-1.5 hover:border-gray-500 cursor-pointer">
+            <Search className="w-4 h-4 text-tv-text/50 mr-2" />
+            <input
+              type="text"
+              value={symbol}
+              onChange={(e) => onSymbolChange(e.target.value)}
+              className="bg-transparent text-tv-text text-sm focus:outline-none w-32 font-bold"
+              placeholder="Symbol"
+            />
+          </div>
         </div>
 
-        <div className="h-6 w-px bg-tv-border mx-2" />
+        <div className="h-6 w-px bg-tv-border mx-4" />
 
-        <div className="flex gap-1">
+        <div className="flex items-center gap-0.5">
           {timeframes.map((tf) => (
             <button
               key={tf.value}
               onClick={() => onIntervalChange(tf.value)}
-              className={`px-3 py-1.5 text-xs font-medium rounded hover:bg-tv-grid transition-colors ${
-                interval === tf.value ? 'bg-blue-600 text-white' : 'text-tv-text'
+              className={`px-2.5 py-1.5 text-[13px] font-semibold rounded hover:bg-tv-grid transition-colors ${
+                interval === tf.value ? 'text-blue-500' : 'text-tv-text'
               }`}
             >
               {tf.label}
@@ -72,20 +77,46 @@ const Header: React.FC<HeaderProps> = ({
           ))}
         </div>
 
-        <div className="h-6 w-px bg-tv-border mx-2" />
+        <div className="h-6 w-px bg-tv-border mx-4" />
 
-        <div className="flex gap-1">
-          {chartTypes.map((ct) => (
-            <button
-              key={ct.value}
-              onClick={() => onChartTypeChange(ct.value)}
-              className={`px-3 py-1.5 text-xs font-medium rounded hover:bg-tv-grid transition-colors ${
-                chartType === ct.value ? 'bg-blue-600 text-white' : 'text-tv-text'
-              }`}
-            >
-              {ct.label}
-            </button>
-          ))}
+        <div className="relative">
+          <button
+            onClick={() => setShowChartTypes(!showChartTypes)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-tv-text hover:bg-tv-grid rounded transition-colors"
+          >
+            <CurrentChartIcon className="w-4 h-4 text-blue-500" />
+            <span className="text-[13px] font-semibold">{chartTypes.find(ct => ct.value === chartType)?.label.split(' ')[0]}</span>
+            <ChevronDown className={`w-3 h-3 transition-transform ${showChartTypes ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showChartTypes && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowChartTypes(false)}
+              />
+              <div className="absolute top-full left-0 mt-1 w-56 bg-[#1e222d] border border-tv-border rounded shadow-xl z-50 py-1">
+                {chartTypes.map((ct) => {
+                  const Icon = ct.icon;
+                  return (
+                    <button
+                      key={ct.value}
+                      onClick={() => {
+                        onChartTypeChange(ct.value);
+                        setShowChartTypes(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                        chartType === ct.value ? 'bg-blue-600/20 text-blue-500' : 'text-tv-text hover:bg-tv-grid'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="font-medium">{ct.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

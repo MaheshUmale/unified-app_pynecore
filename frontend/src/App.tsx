@@ -26,7 +26,7 @@ const App: React.FC = () => {
       try {
         const res = await fetch(`${backendUrl}/api/tv/intraday/${encodeURIComponent(symbol)}?interval=${interval}`);
         const data = await res.json();
-        if (data && data.candles) {
+        if (data && data.candles && data.candles.length > 0) {
           const formatted = data.candles.map((c: any) => ({
             time: c[0],
             open: c[1],
@@ -36,6 +36,21 @@ const App: React.FC = () => {
             volume: c[5],
           })).sort((a: any, b: any) => a.time - b.time);
           setRawOHLC(formatted);
+        } else {
+          // Fallback to mock data for demonstration if backend has no data
+          const mockData: OHLC[] = [];
+          let time = Math.floor(Date.now() / 1000) - 500 * 60;
+          let price = 22000;
+          for (let i = 0; i < 500; i++) {
+            const open = price;
+            const high = open + Math.random() * 20;
+            const low = open - Math.random() * 20;
+            const close = low + Math.random() * (high - low);
+            mockData.push({ time, open, high, low, close, volume: Math.floor(Math.random() * 1000) });
+            time += 60;
+            price = close;
+          }
+          setRawOHLC(mockData);
         }
       } catch (err) {
         console.error("Fetch failed", err);
@@ -86,10 +101,17 @@ const App: React.FC = () => {
   }, [symbol, interval]);
 
   const transformedData = useMemo(() => {
+    if (rawOHLC.length === 0) return [];
+
+    // Simple dynamic brick size: ~0.1% of price
+    const basePrice = rawOHLC[0].close;
+    const renkoSize = basePrice > 1000 ? 50 : 5;
+    const rangeSize = basePrice > 1000 ? 75 : 7.5;
+
     if (chartType === 'renko') {
-      return calculateRenko(rawOHLC, 10);
+      return calculateRenko(rawOHLC, renkoSize);
     } else if (chartType === 'range') {
-      return calculateRangeBars(rawOHLC, 15);
+      return calculateRangeBars(rawOHLC, rangeSize);
     }
     return rawOHLC;
   }, [rawOHLC, chartType]);
