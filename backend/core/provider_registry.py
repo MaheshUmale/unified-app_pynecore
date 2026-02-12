@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, List, Type, Any, Optional, TypeVar, Generic
-from core.interfaces import ILiveStreamProvider, IOptionsDataProvider, IHistoricalDataProvider
+from core.interfaces import ILiveStreamProvider, IHistoricalDataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -43,27 +43,19 @@ class ProviderRegistry(Generic[T]):
         """Get all registered providers in priority order."""
         return [self.providers[name] for name in self.priority_list]
 
-
 # Global registries
 live_stream_registry = ProviderRegistry(ILiveStreamProvider)
-options_data_registry = ProviderRegistry(IOptionsDataProvider)
 historical_data_registry = ProviderRegistry(IHistoricalDataProvider)
 
 def initialize_default_providers():
     """Seed the registries with existing implementations."""
     from external.providers import (
         TradingViewLiveStreamProvider,
-        TrendlyneOptionsProvider,
-        NSEOptionsProvider,
         TradingViewHistoricalProvider
     )
 
     # Live Stream
     live_stream_registry.register("tradingview", TradingViewLiveStreamProvider(), priority=10)
-
-    # Options Data
-    options_data_registry.register("trendlyne", TrendlyneOptionsProvider(), priority=10)
-    options_data_registry.register("nse", NSEOptionsProvider(), priority=5)
 
     # Historical Data
     historical_data_registry.register("tradingview", TradingViewHistoricalProvider(), priority=10)

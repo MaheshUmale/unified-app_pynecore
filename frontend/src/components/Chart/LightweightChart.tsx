@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CandlestickSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
-import type { CandlestickData, HistogramData } from 'lightweight-charts';
+import type { CandlestickData, HistogramData, IChartApi, ISeriesApi } from 'lightweight-charts';
 
 interface Drawing {
   type: 'trendline' | 'fibonacci';
@@ -24,9 +24,9 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<any>(null);
-  const seriesRef = useRef<any>(null);
-  const volumeSeriesRef = useRef<any>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<any> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<any> | null>(null);
 
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [currentDrawing, setCurrentDrawing] = useState<Drawing | null>(null);
@@ -61,10 +61,8 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 
     chartRef.current = chart;
 
-    const chartAny = chart as any;
-
     if (type === 'candle') {
-      seriesRef.current = chartAny.addSeries(CandlestickSeries, {
+      seriesRef.current = chart.addSeries(CandlestickSeries, {
         upColor: '#26a69a',
         downColor: '#ef5350',
         borderVisible: false,
@@ -72,13 +70,13 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
         wickDownColor: '#ef5350',
       });
     } else {
-      seriesRef.current = chartAny.addSeries(LineSeries, {
+      seriesRef.current = chart.addSeries(LineSeries, {
         color: '#2196F3',
         lineWidth: 2,
       });
     }
 
-    volumeSeriesRef.current = chartAny.addSeries(HistogramSeries, {
+    volumeSeriesRef.current = chart.addSeries(HistogramSeries, {
       color: '#26a69a',
       priceFormat: { type: 'volume' },
       priceScaleId: '',
@@ -240,11 +238,13 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
     canvas.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
 
-    // Sync rendering
-    const animationId = requestAnimationFrame(function loop() {
+    // Optimized rendering: only if needed
+    let animationId: number;
+    const loop = () => {
       renderDrawings();
-      requestAnimationFrame(loop);
-    });
+      animationId = requestAnimationFrame(loop);
+    };
+    animationId = requestAnimationFrame(loop);
 
     return () => {
       canvas.removeEventListener('mousedown', handleMouseDown);
@@ -255,10 +255,10 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 
   return (
     <div className="relative w-full h-full">
-      <div ref={chartContainerRef} className="absolute inset-0" />
+      <div ref={chartContainerRef} className="absolute inset-0 tv-chart-container" />
       <canvas
         ref={canvasRef}
-        className={`absolute inset-0 z-10 ${activeTool === 'cursor' ? 'pointer-events-none' : 'cursor-crosshair'}`}
+        className={`absolute inset-0 z-10 ${activeTool === 'cursor' || activeTool === 'eraser' ? 'pointer-events-none' : 'cursor-crosshair'}`}
       />
     </div>
   );
