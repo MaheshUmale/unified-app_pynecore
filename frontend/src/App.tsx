@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [activeTool, setActiveTool] = useState('cursor');
   const [rawOHLC, setRawOHLC] = useState<OHLC[]>([]);
+  const [clearDrawingsToggle, setClearDrawingsToggle] = useState(false);
 
   useEffect(() => {
     socketService.connect();
@@ -129,7 +130,14 @@ const App: React.FC = () => {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />
+        <Toolbar
+          activeTool={activeTool}
+          onToolChange={setActiveTool}
+          onClearAll={() => {
+            setClearDrawingsToggle(true);
+            setTimeout(() => setClearDrawingsToggle(false), 100);
+          }}
+        />
 
         <main className="flex-1 bg-tv-bg relative">
           <LightweightChart
@@ -137,6 +145,7 @@ const App: React.FC = () => {
             volumeData={volumeData}
             type={chartType === 'line' ? 'line' : 'candle'}
             activeTool={activeTool}
+            clearDrawings={clearDrawingsToggle}
           />
         </main>
 

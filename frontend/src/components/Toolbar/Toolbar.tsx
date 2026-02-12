@@ -14,9 +14,10 @@ const tools = [
 interface ToolbarProps {
   activeTool: string;
   onToolChange: (tool: string) => void;
+  onClearAll: () => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ activeTool, onToolChange }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ activeTool, onToolChange, onClearAll }) => {
   return (
     <div className="w-12 border-r border-tv-border bg-tv-bg flex flex-col items-center py-4 gap-4">
       {tools.map((tool) => {
@@ -39,7 +40,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ activeTool, onToolChange }) => {
       })}
 
       <div className="mt-auto flex flex-col items-center gap-4">
-        <button className="p-2 text-tv-text hover:bg-tv-grid rounded transition-colors" title="Clear All">
+        <button
+          onClick={onClearAll}
+          className="p-2 text-tv-text hover:bg-tv-grid rounded transition-colors"
+          title="Clear All Drawings"
+        >
           <Trash2 className="w-5 h-5" />
         </button>
       </div>

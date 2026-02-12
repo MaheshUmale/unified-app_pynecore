@@ -13,6 +13,7 @@ interface LightweightChartProps {
   type?: 'candle' | 'line';
   onCrosshairMove?: (param: any) => void;
   activeTool?: string;
+  clearDrawings?: boolean;
 }
 
 const LightweightChart: React.FC<LightweightChartProps> = ({
@@ -20,7 +21,8 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
   volumeData,
   type = 'candle',
   onCrosshairMove,
-  activeTool
+  activeTool,
+  clearDrawings
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,6 +32,13 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [currentDrawing, setCurrentDrawing] = useState<Drawing | null>(null);
+
+  useEffect(() => {
+    if (clearDrawings) {
+      setDrawings([]);
+      setCurrentDrawing(null);
+    }
+  }, [clearDrawings]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
