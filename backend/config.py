@@ -166,11 +166,6 @@ SNAPSHOT_CONFIG = {
 
 # Feature Flags
 FEATURES = {
-    "greeks_calculation": True,
-    "iv_analysis": True,
-    "oi_buildup_analysis": True,
-    "strategy_builder": True,
-    "alert_system": True,
     "paper_trading": False,  # Coming in future release
     "backtesting": False     # Coming in future release
 }

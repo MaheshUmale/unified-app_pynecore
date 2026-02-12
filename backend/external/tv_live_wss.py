@@ -93,27 +93,6 @@ class TradingViewWSS:
         self._send_message("resolve_symbol", [session_id, "sds_sym_1", symbol_payload])
         self._send_message("create_series", [session_id, "sds_1", "s1", "sds_sym_1", interval, 300, ""])
 
-        from config import TV_STUDY_ID
-        if TV_STUDY_ID:
-            try:
-                if TV_STUDY_ID not in self.indicator_metadata:
-                    self.indicator_metadata[TV_STUDY_ID] = self.get_indicator_metadata(TV_STUDY_ID)
-
-                meta_info = self.indicator_metadata[TV_STUDY_ID]
-                self._create_study(session_id, self.study_id, "sds_1", meta_info)
-            except Exception as e:
-                logger.error(f"Failed to load study for {symbol}: {e}")
-
-    def _create_study(self, session_id, study_id, series_id, metadata):
-        inputs = {"text": metadata["script"]}
-        if "pineId" in metadata: inputs["pineId"] = metadata["pineId"]
-        if "pineVersion" in metadata: inputs["pineVersion"] = metadata["pineVersion"]
-        for input_id, input_val in metadata.get("inputs", {}).items():
-            inputs[input_id] = {"v": input_val.get("value"), "f": input_val.get("isFake", False), "t": input_val.get("type")}
-        indicator_type = "Script@tv-scripting-101!"
-        if metadata.get("type") == "strategy": indicator_type = "StrategyScript@tv-scripting-101!"
-        self._send_message("create_study", [session_id, study_id, study_id, series_id, indicator_type, inputs])
-
     def get_user_data(self):
         if not TV_COOKIE: return None
         url = "https://www.tradingview.com/"
@@ -125,30 +104,6 @@ class TradingViewWSS:
         except Exception as e:
             logger.error(f"Error getting user data: {e}")
         return None
-
-    def get_indicator_metadata(self, indicator_id, version="last"):
-        url = f"https://pine-facade.tradingview.com/pine-facade/translate/{indicator_id}/{version}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        try:
-            response = requests.get(url, headers=headers, cookies=TV_COOKIE, timeout=10)
-            data = response.json()
-        except Exception as e:
-            logger.error(f"Error fetching indicator metadata: {e}")
-            raise Exception(f"Failed to fetch indicator metadata: {e}")
-        if not isinstance(data, dict) or not data.get("success"):
-            raise Exception(f"Failed to get indicator metadata: {data.get('reason') if isinstance(data, dict) else 'Unknown error'}")
-        result = data.get("result", {})
-        metaInfo = result.get("metaInfo", {})
-        inputs = {item["id"]: {"name": item.get("name"), "type": item.get("type"), "value": item.get("defval"), "isFake": item.get("isFake", False)} for item in metaInfo.get("inputs", []) if item.get("id") not in ["text", "pineId", "pineVersion"]}
-        plots = {}
-        styles = metaInfo.get("styles", {})
-        for i, p in enumerate(metaInfo.get("plots", [])):
-            plot_id = p.get("id")
-            style = styles.get(plot_id, {})
-            title = style.get("title", plot_id).replace(" ", "_")
-            if title in [p["title"] for p in plots.values()]: title = f"{title}_{plot_id}"
-            plots[plot_id] = {"id": plot_id, "index": i, "title": title, "type": style.get("plottype"), "color": style.get("color"), "linewidth": style.get("linewidth", 1), "linestyle": style.get("linestyle", 0)}
-        return {"pineId": metaInfo.get("scriptIdPart", indicator_id), "pineVersion": metaInfo.get("pine", {}).get("version", version), "inputs": inputs, "plots": plots, "script": result.get("ilTemplate"), "type": metaInfo.get("extra", {}).get("kind") or metaInfo.get("package", {}).get("type") or "study"}
 
     def on_open(self, ws):
         logger.info("TV WSS Connection opened")
@@ -224,92 +179,20 @@ class TradingViewWSS:
                 if hist_key not in self.ohlcv_map: self.ohlcv_map[hist_key] = {}
                 if hist_key not in self.history: self.history[hist_key] = {}
 
-                # Use the map to ensure we have unique candles by timestamp
-                # and that we don't lose history when updates come in
                 for c in candles:
                     ts = c[0]
-                    # Only store candles with valid timestamps
                     if ts > 1e9:
                         self.ohlcv_map[hist_key][ts] = c
 
-                # Get sorted list of candles
                 full_ohlcv = [self.ohlcv_map[hist_key][ts] for ts in sorted(self.ohlcv_map[hist_key].keys())]
 
-                # Limit history to 2000 candles to avoid memory bloat
                 if len(full_ohlcv) > 2000:
                     full_ohlcv = full_ohlcv[-2000:]
-                    # Cleanup map
                     valid_ts = {c[0] for c in full_ohlcv}
                     self.ohlcv_map[hist_key] = {ts: c for ts, c in self.ohlcv_map[hist_key].items() if ts in valid_ts}
 
-                # Save back to history
                 self.history[hist_key]['ohlcv'] = full_ohlcv
                 update_msg['data']['ohlcv'] = full_ohlcv if len(candles) > 10 else candles
-
-        # Recalculate indicators from history
-        if hist_key in self.history and 'ohlcv' in self.history[hist_key]:
-            ohlcv_data = self.history[hist_key]['ohlcv']
-            indicators = []
-            try:
-                import pandas as pd
-                df = pd.DataFrame(ohlcv_data, columns=['ts', 'o', 'h', 'l', 'c', 'v'])
-                ema9 = df['c'].ewm(span=9, adjust=False).mean()
-                indicators.append({
-                    "id": "ema_9",
-                    "title": "EMA 9",
-                    "type": "line",
-                    "style": {"color": "#3b82f6", "lineWidth": 1},
-                    "data": [{"time": ohlcv_data[i][0], "value": float(val)} for i, val in enumerate(ema9) if i >= 8]
-                })
-                ema20 = df['c'].ewm(span=20, adjust=False).mean()
-                indicators.append({
-                    "id": "ema_20",
-                    "title": "EMA 20",
-                    "type": "line",
-                    "style": {"color": "#f97316", "lineWidth": 1},
-                    "data": [{"time": ohlcv_data[i][0], "value": float(val)} for i, val in enumerate(ema20) if i >= 19]
-                })
-
-                from brain.MarketPsychologyAnalyzer import MarketPsychologyAnalyzer
-                analyzer = MarketPsychologyAnalyzer()
-                zones, signals = analyzer.analyze(ohlcv_data)
-
-                for i, zone in enumerate(zones):
-                    indicators.append({
-                        "id": f"battle_zone_{i}",
-                        "type": "price_line",
-                        "title": "BATTLE ZONE",
-                        "data": {
-                            "price": zone['price'],
-                            "color": "rgba(59, 130, 246, 0.4)",
-                            "lineStyle": 2,
-                            "title": "BATTLE ZONE"
-                        }
-                    })
-
-                marker_data = []
-                for ts, sig_type in signals.items():
-                    unix_ts = int(ts.timestamp())
-                    marker_data.append({
-                        "time": unix_ts,
-                        "position": "aboveBar" if "SHORT" in sig_type else "belowBar",
-                        "color": "#ef4444" if "SHORT" in sig_type else "#22c55e",
-                        "shape": "arrowDown" if "SHORT" in sig_type else "arrowUp",
-                        "text": sig_type
-                    })
-
-                if marker_data:
-                    indicators.append({
-                        "id": "psych_signals",
-                        "type": "markers",
-                        "title": "Psychology Signals",
-                        "data": marker_data
-                    })
-
-                update_msg['data']['indicators'] = indicators
-                self.history[hist_key]['indicators'] = indicators
-            except Exception as e:
-                logger.error(f"Error calculating indicators live: {e}")
 
         if update_msg['data']:
             self.callback(update_msg)

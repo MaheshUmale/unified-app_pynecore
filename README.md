@@ -42,16 +42,16 @@ npm run build
 ```
 
 ### 3. Start the Application
-Run the unified server (serves both API and Frontend):
+Run the unified server (serves both API and the React Frontend):
 ```bash
 python3 backend/api_server.py
 ```
-The application will be available at `http://localhost:3000` (or the port specified in your environment).
+The application will be available at `http://localhost:3000`.
 
-## Development
-To run the frontend in development mode with Hot Module Replacement (HMR):
-```bash
-cd frontend
-npm run dev
-```
-By default, the dev server runs at `http://localhost:5173`. Ensure the backend is also running to provide data.
+> **Note on UI:** The FastAPI backend is configured to serve the production-built React frontend from `frontend/dist`. There is only one unified UI.
+
+## Development Mode
+If you are developing and want Hot Module Replacement (HMR):
+1. Start the backend: `python3 backend/api_server.py`
+2. Start the Vite dev server: `cd frontend && npm run dev`
+3. Access the app via `http://localhost:5173`.
