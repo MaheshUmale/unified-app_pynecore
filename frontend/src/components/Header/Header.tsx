@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Moon, Sun, LayoutGrid, ChevronDown, BarChart2, TrendingUp, Hash, Activity } from 'lucide-react';
+import { Search, Moon, Sun, LayoutGrid, ChevronDown, BarChart2, TrendingUp, Hash, Activity, FlaskConical } from 'lucide-react';
 import type { ChartType } from '../../types/chart';
 
 interface HeaderProps {
@@ -11,6 +11,8 @@ interface HeaderProps {
   onChartTypeChange: (type: ChartType) => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+  showSMA: boolean;
+  onToggleSMA: () => void;
 }
 
 const timeframes = [
@@ -21,6 +23,7 @@ const timeframes = [
   { label: '1H', value: '60' },
   { label: '1D', value: 'D' },
 ];
+
 const chartTypes: { label: string; value: ChartType; icon: any }[] = [
   { label: 'Candle', value: 'candle', icon: BarChart2 },
   { label: 'Line', value: 'line', icon: TrendingUp },
@@ -37,13 +40,16 @@ const Header: React.FC<HeaderProps> = ({
   onChartTypeChange,
   isDarkMode,
   toggleDarkMode,
+  showSMA,
+  onToggleSMA
 }) => {
   const [showChartTypes, setShowChartTypes] = useState(false);
+  const [showIndicators, setShowIndicators] = useState(false);
   const CurrentChartIcon = chartTypes.find(ct => ct.value === chartType)?.icon || BarChart2;
 
   return (
     <header className="h-14 border-b border-tv-border bg-tv-bg flex items-center px-4 justify-between select-none">
-      <div className="flex items-center">
+      <div className="flex items-center h-full">
         <div className="text-blue-500 font-bold text-xl tracking-tighter mr-6">
           UNIFIED<span className="text-white">APP</span>
         </div>
@@ -79,7 +85,7 @@ const Header: React.FC<HeaderProps> = ({
 
         <div className="h-6 w-px bg-tv-border mx-4" />
 
-        <div className="relative">
+        <div className="relative h-full flex items-center">
           <button
             onClick={() => setShowChartTypes(!showChartTypes)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-tv-text hover:bg-tv-grid rounded transition-colors"
@@ -91,11 +97,8 @@ const Header: React.FC<HeaderProps> = ({
 
           {showChartTypes && (
             <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setShowChartTypes(false)}
-              />
-              <div className="absolute top-full left-0 mt-1 w-56 bg-[#1e222d] border border-tv-border rounded shadow-xl z-50 py-1">
+              <div className="fixed inset-0 z-40" onClick={() => setShowChartTypes(false)} />
+              <div className="absolute top-[calc(100%-4px)] left-0 w-56 bg-[#1e222d] border border-tv-border rounded shadow-xl z-50 py-1">
                 {chartTypes.map((ct) => {
                   const Icon = ct.icon;
                   return (
@@ -114,6 +117,38 @@ const Header: React.FC<HeaderProps> = ({
                     </button>
                   );
                 })}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="h-6 w-px bg-tv-border mx-4" />
+
+        <div className="relative h-full flex items-center">
+          <button
+            onClick={() => setShowIndicators(!showIndicators)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-tv-text hover:bg-tv-grid rounded transition-colors"
+          >
+            <FlaskConical className="w-4 h-4 text-blue-500" />
+            <span className="text-[13px] font-semibold">Indicators</span>
+          </button>
+
+          {showIndicators && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowIndicators(false)} />
+              <div className="absolute top-[calc(100%-4px)] left-0 w-56 bg-[#1e222d] border border-tv-border rounded shadow-xl z-50 py-1">
+                <button
+                  onClick={() => {
+                    onToggleSMA();
+                    setShowIndicators(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
+                    showSMA ? 'bg-blue-600/20 text-blue-500' : 'text-tv-text hover:bg-tv-grid'
+                  }`}
+                >
+                  <span className="font-medium">SMA 20</span>
+                  {showSMA && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                </button>
               </div>
             </>
           )}
