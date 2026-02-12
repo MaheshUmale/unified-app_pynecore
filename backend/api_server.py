@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from urllib.parse import unquote
 
-from config import LOGGING_CONFIG, INITIAL_INSTRUMENTS
+from config import LOGGING_CONFIG, INITIAL_INSTRUMENTS, SERVER_PORT
 from core import data_engine
 from core.provider_registry import initialize_default_providers
 from core.symbol_mapper import symbol_mapper
@@ -177,6 +177,6 @@ app = socketio.ASGIApp(sio, fastapi_app)
 
 if __name__ == "__main__":
     import uvicorn
-    # Use port 3000 for serving the app
-    port = int(os.getenv("PORT", 3000))
+    # Use port from config
+    port = int(os.getenv("PORT", SERVER_PORT))
     uvicorn.run("api_server:app", host="0.0.0.0", port=port, reload=False)

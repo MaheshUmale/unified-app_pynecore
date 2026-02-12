@@ -1,5 +1,3 @@
-
-
 # UNIFIED APP - High-Performance Financial Charting
 
 A professional-grade financial charting application replicating TradingView's layout and functionality, built with React, TypeScript, and FastAPI.
