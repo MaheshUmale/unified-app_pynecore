@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, FlaskConical } from 'lucide-react';
-import { createChart, ColorType, LineSeries, AreaSeries } from 'lightweight-charts';
+import { createChart, ColorType } from 'lightweight-charts';
 
 interface OptionChainProps {
   symbol: string;
@@ -27,7 +27,7 @@ interface OptionData {
   put: OptionLeg;
 }
 
-const OptionChain: React.FC<OptionChainProps> = ({ symbol, onClose }) => {
+const OptionChain: React.FC<OptionChainProps> = ({ symbol, onClose, isDarkMode }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showGreeks, setShowGreeks] = useState(false);
@@ -98,9 +98,22 @@ const OptionChain: React.FC<OptionChainProps> = ({ symbol, onClose }) => {
   // Charts implementation
   useEffect(() => {
     if (activeTab !== 'analysis' || !pcrChartRef.current || !data?.history) return;
-    const chart = createChart(pcrChartRef.current, { width: pcrChartRef.current.clientWidth, height: 250, layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#d1d4dc' }, grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } }, rightPriceScale: { borderColor: '#2b2b43' }, timeScale: { borderColor: '#2b2b43', timeVisible: true } });
-    const spotSeries = chart.addSeries(AreaSeries, { lineColor: '#2196f3', topColor: 'rgba(33, 150, 243, 0.4)', bottomColor: 'rgba(33, 150, 243, 0.0)', lineWidth: 2, priceFormat: { type: 'price', precision: 1 }, title: 'Spot' });
-    const pcrSeries = chart.addSeries(LineSeries, { color: '#ff9800', lineWidth: 2, priceFormat: { type: 'price', precision: 3 }, priceScaleId: 'left', title: 'PCR' });
+    const chart = createChart(pcrChartRef.current, {
+      width: pcrChartRef.current.clientWidth,
+      height: 250,
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: isDarkMode ? '#d1d4dc' : '#333'
+      },
+      grid: {
+        vertLines: { color: isDarkMode ? '#2b2b43' : '#eee' },
+        horzLines: { color: isDarkMode ? '#2b2b43' : '#eee' }
+      },
+      rightPriceScale: { borderColor: isDarkMode ? '#2b2b43' : '#eee' },
+      timeScale: { borderColor: isDarkMode ? '#2b2b43' : '#eee', timeVisible: true }
+    });
+    const spotSeries = chart.addAreaSeries({ lineColor: '#2196f3', topColor: 'rgba(33, 150, 243, 0.4)', bottomColor: 'rgba(33, 150, 243, 0.0)', lineWidth: 2, priceFormat: { type: 'price', precision: 1 }, title: 'Spot' });
+    const pcrSeries = chart.addLineSeries({ color: '#ff9800', lineWidth: 2, priceFormat: { type: 'price', precision: 3 }, priceScaleId: 'left', title: 'PCR' });
     chart.priceScale('left').applyOptions({ visible: true, borderColor: '#2b2b43' });
     spotSeries.setData(data.history.map((h: any) => ({ time: h.time as any, value: h.spot })));
     pcrSeries.setData(data.history.map((h: any) => ({ time: h.time as any, value: h.pcr })));
@@ -112,8 +125,20 @@ const OptionChain: React.FC<OptionChainProps> = ({ symbol, onClose }) => {
 
   useEffect(() => {
     if (activeTab !== 'analysis' || !oiChartRef.current || !data?.history) return;
-    const chart = createChart(oiChartRef.current, { width: oiChartRef.current.clientWidth, height: 250, layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#d1d4dc' }, grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } }, timeScale: { borderColor: '#2b2b43', timeVisible: true } });
-    const oiSeries = chart.addSeries(AreaSeries, { lineColor: '#26a69a', topColor: 'rgba(38, 166, 154, 0.4)', bottomColor: 'rgba(38, 166, 154, 0.0)', lineWidth: 2, title: 'Total OI' });
+    const chart = createChart(oiChartRef.current, {
+      width: oiChartRef.current.clientWidth,
+      height: 250,
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: isDarkMode ? '#d1d4dc' : '#333'
+      },
+      grid: {
+        vertLines: { color: isDarkMode ? '#2b2b43' : '#eee' },
+        horzLines: { color: isDarkMode ? '#2b2b43' : '#eee' }
+      },
+      timeScale: { borderColor: isDarkMode ? '#2b2b43' : '#eee', timeVisible: true }
+    });
+    const oiSeries = chart.addAreaSeries({ lineColor: '#26a69a', topColor: 'rgba(38, 166, 154, 0.4)', bottomColor: 'rgba(38, 166, 154, 0.0)', lineWidth: 2, title: 'Total OI' });
     oiSeries.setData(data.history.map((h: any) => ({ time: h.time as any, value: h.total_oi })));
     chart.timeScale().fitContent();
     const hr = () => oiChartRef.current && chart.applyOptions({ width: oiChartRef.current.clientWidth });

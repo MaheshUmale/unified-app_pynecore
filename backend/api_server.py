@@ -146,6 +146,8 @@ async def snapshot_task():
                 logger.error(f"Snapshot Error for {symbol}: {e}")
 
         await asyncio.sleep(interval)
+# Create logs directory if it doesn't exist
+os.makedirs("logs", exist_ok=True)
 
 # Configure Logging
 dictConfig(LOGGING_CONFIG)

@@ -1,0 +1,225 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: UNIFIEDAPP
+      - generic [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+        - textbox "Symbol" [ref=e12]: NSE:INDIAVIX
+      - generic [ref=e14]:
+        - button "1M" [ref=e15] [cursor=pointer]
+        - button "5M" [ref=e16] [cursor=pointer]
+        - button "15M" [ref=e17] [cursor=pointer]
+        - button "30M" [ref=e18] [cursor=pointer]
+        - button "1H" [ref=e19] [cursor=pointer]
+        - button "1D" [ref=e20] [cursor=pointer]
+      - button "Candle" [ref=e23] [cursor=pointer]:
+        - img [ref=e24]
+        - generic [ref=e25]: Candle
+        - img [ref=e26]
+      - button "Indicators" [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+        - generic [ref=e33]: Indicators
+    - generic [ref=e34]:
+      - button "Bar Replay" [ref=e35] [cursor=pointer]:
+        - img [ref=e36]
+      - button "Option Chain" [ref=e39] [cursor=pointer]:
+        - img [ref=e40]
+      - button "Sync Crosshair/Time" [ref=e43] [cursor=pointer]:
+        - img [ref=e44]
+      - generic [ref=e48]:
+        - generic [ref=e49]: TZ
+        - combobox [ref=e50] [cursor=pointer]:
+          - option "UTC"
+          - option "IST" [selected]
+      - button [ref=e53] [cursor=pointer]:
+        - img [ref=e54]
+      - button [ref=e59] [cursor=pointer]:
+        - img [ref=e60]
+  - generic [ref=e66]:
+    - complementary [ref=e67]:
+      - button "Cursor" [ref=e68] [cursor=pointer]:
+        - img [ref=e69]
+        - generic: Cursor
+      - button "Trendline" [ref=e71] [cursor=pointer]:
+        - img [ref=e72]
+        - generic: Trendline
+      - button "Fibonacci" [ref=e75] [cursor=pointer]:
+        - img [ref=e76]
+        - generic: Fibonacci
+      - button "Horizontal Line" [ref=e79] [cursor=pointer]:
+        - img [ref=e80]
+        - generic: Horizontal Line
+      - button "Vertical Line" [ref=e81] [cursor=pointer]:
+        - img [ref=e82]
+        - generic: Vertical Line
+      - button "Text" [ref=e84] [cursor=pointer]:
+        - img [ref=e85]
+        - generic: Text
+      - button "Rectangle" [ref=e87] [cursor=pointer]:
+        - img [ref=e88]
+        - generic: Rectangle
+      - button "Circle" [ref=e90] [cursor=pointer]:
+        - img [ref=e91]
+        - generic: Circle
+      - button "Eraser" [ref=e93] [cursor=pointer]:
+        - img [ref=e94]
+        - generic: Eraser
+      - button "Clear All Drawings" [ref=e98] [cursor=pointer]:
+        - img [ref=e99]
+        - generic: Clear All Drawings
+    - main [ref=e102]:
+      - generic [ref=e104]:
+        - generic [ref=e105]:
+          - generic:
+            - generic: NSE:NIFTY
+            - generic: 1m
+            - generic: tick
+          - table [ref=e109]:
+            - row [ref=e110]:
+              - cell
+              - cell [ref=e111]:
+                - link "Charting by TradingView" [ref=e115] [cursor=pointer]:
+                  - /url: https://www.tradingview.com/?utm_medium=lwc-link&utm_campaign=lwc-chart&utm_source=localhost/
+                  - img [ref=e116]
+              - cell [ref=e120]
+            - row [ref=e124]:
+              - cell
+              - cell [ref=e125]
+              - cell [ref=e129]
+        - generic [ref=e132]:
+          - generic:
+            - generic: NSE:BANKNIFTY
+            - generic: 5m
+            - generic: candle
+          - table [ref=e136]:
+            - row [ref=e137]:
+              - cell
+              - cell [ref=e138]:
+                - link "Charting by TradingView" [ref=e142] [cursor=pointer]:
+                  - /url: https://www.tradingview.com/?utm_medium=lwc-link&utm_campaign=lwc-chart&utm_source=localhost/
+                  - img [ref=e143]
+              - cell [ref=e147]
+            - row [ref=e151]:
+              - cell
+              - cell [ref=e152]
+              - cell [ref=e156]
+        - generic [ref=e159]:
+          - generic:
+            - generic: NSE:FINNIFTY
+            - generic: 15m
+            - generic: candle
+          - table [ref=e163]:
+            - row [ref=e164]:
+              - cell
+              - cell [ref=e165]:
+                - link "Charting by TradingView" [ref=e169] [cursor=pointer]:
+                  - /url: https://www.tradingview.com/?utm_medium=lwc-link&utm_campaign=lwc-chart&utm_source=localhost/
+                  - img [ref=e170]
+              - cell [ref=e174]
+            - row [ref=e178]:
+              - cell
+              - cell [ref=e179]
+              - cell [ref=e183]
+        - generic [ref=e186]:
+          - generic:
+            - generic: NSE:INDIAVIX
+            - generic: 60m
+            - generic: candle
+          - table [ref=e190]:
+            - row [ref=e191]:
+              - cell
+              - cell [ref=e192]:
+                - link "Charting by TradingView" [ref=e196] [cursor=pointer]:
+                  - /url: https://www.tradingview.com/?utm_medium=lwc-link&utm_campaign=lwc-chart&utm_source=localhost/
+                  - img [ref=e197]
+              - cell [ref=e201]
+            - row [ref=e205]:
+              - cell
+              - cell [ref=e206]
+              - cell [ref=e210]
+    - complementary [ref=e213]:
+      - generic [ref=e215]:
+        - heading "Watchlist" [level=2] [ref=e216]
+        - generic [ref=e217]:
+          - button [ref=e218] [cursor=pointer]:
+            - img [ref=e219]
+          - button [ref=e220] [cursor=pointer]:
+            - img [ref=e221]
+      - table [ref=e226]:
+        - rowgroup [ref=e227]:
+          - row "Symbol Last Chg%" [ref=e228]:
+            - columnheader "Symbol" [ref=e229]
+            - columnheader "Last" [ref=e230]
+            - columnheader "Chg%" [ref=e231]
+            - columnheader [ref=e232]
+        - rowgroup [ref=e233]:
+          - row "AAPL 185.92 0.68%" [ref=e234] [cursor=pointer]:
+            - cell "AAPL" [ref=e235]
+            - cell "185.92" [ref=e236]
+            - cell "0.68%" [ref=e237]:
+              - img [ref=e238]
+              - text: 0.68%
+            - cell [ref=e241]:
+              - button [ref=e242]:
+                - img [ref=e243]
+          - row "BTCUSD 43,250.5 0.28%" [ref=e246] [cursor=pointer]:
+            - cell "BTCUSD" [ref=e247]
+            - cell "43,250.5" [ref=e248]
+            - cell "0.28%" [ref=e249]:
+              - img [ref=e250]
+              - text: 0.28%
+            - cell [ref=e253]:
+              - button [ref=e254]:
+                - img [ref=e255]
+          - row "TSLA 193.57 2.17%" [ref=e258] [cursor=pointer]:
+            - cell "TSLA" [ref=e259]
+            - cell "193.57" [ref=e260]
+            - cell "2.17%" [ref=e261]:
+              - img [ref=e262]
+              - text: 2.17%
+            - cell [ref=e265]:
+              - button [ref=e266]:
+                - img [ref=e267]
+          - row "MSFT 402.56 0.21%" [ref=e270] [cursor=pointer]:
+            - cell "MSFT" [ref=e271]
+            - cell "402.56" [ref=e272]
+            - cell "0.21%" [ref=e273]:
+              - img [ref=e274]
+              - text: 0.21%
+            - cell [ref=e277]:
+              - button [ref=e278]:
+                - img [ref=e279]
+          - row "ETHUSD 2,315.2 0.68%" [ref=e282] [cursor=pointer]:
+            - cell "ETHUSD" [ref=e283]
+            - cell "2,315.2" [ref=e284]
+            - cell "0.68%" [ref=e285]:
+              - img [ref=e286]
+              - text: 0.68%
+            - cell [ref=e289]:
+              - button [ref=e290]:
+                - img [ref=e291]
+          - row "NSE:NIFTY 22,012.35 1.12%" [ref=e294] [cursor=pointer]:
+            - cell "NSE:NIFTY" [ref=e295]
+            - cell "22,012.35" [ref=e296]
+            - cell "1.12%" [ref=e297]:
+              - img [ref=e298]
+              - text: 1.12%
+            - cell [ref=e301]:
+              - button [ref=e302]:
+                - img [ref=e303]
+      - generic [ref=e306]:
+        - heading "Details" [level=3] [ref=e307]
+        - generic [ref=e308]:
+          - generic [ref=e309]:
+            - generic [ref=e310]: Volume
+            - generic [ref=e311]: 42.5M
+          - generic [ref=e312]:
+            - generic [ref=e313]: Avg Vol (10d)
+            - generic [ref=e314]: 38.2M
+          - generic [ref=e315]:
+            - generic [ref=e316]: Market Cap
+            - generic [ref=e317]: 2.8T
+```
