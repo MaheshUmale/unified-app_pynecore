@@ -34,9 +34,9 @@ class TradingViewAPI:
             'INDIA VIX': {'symbol': 'INDIAVIX', 'exchange': 'NSE'}
         }
 
-    def get_hist_candles(self, symbol_or_hrn, interval_min='1', n_bars=1000):
+    def get_hist_candles(self, symbol_or_hrn, interval_min='1', n_bars=1000, to_ts=None):
         try:
-            logger.info(f"Fetching historical candles for {symbol_or_hrn}")
+            logger.info(f"Fetching historical candles for {symbol_or_hrn} (to_ts={to_ts})")
             if not symbol_or_hrn: return None
 
             tv_symbol = symbol_or_hrn
@@ -92,6 +92,10 @@ class TradingViewAPI:
                             except:
                                 pass
 
+                        # Filter by to_ts if provided
+                        if to_ts and ts > to_ts:
+                            continue
+
                         candles.append([
                             ts,
                             float(row['open']), float(row['high']), float(row['low']), float(row['close']),
@@ -123,6 +127,9 @@ class TradingViewAPI:
                             unix_ts = int(ts_ist.timestamp())
                         except:
                             unix_ts = int(ts.timestamp())
+
+                        if to_ts and unix_ts > to_ts:
+                            continue
 
                         candles.append([
                             unix_ts,

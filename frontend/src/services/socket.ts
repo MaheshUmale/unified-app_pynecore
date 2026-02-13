@@ -36,6 +36,10 @@ class WebSocketService {
     this.socket?.on('raw_tick', callback);
   }
 
+  offTick(callback: (data: any) => void) {
+    this.socket?.off('raw_tick', callback);
+  }
+
   onChartUpdate(callback: (data: any) => void) {
     this.socket?.on('chart_update', callback);
   }
