@@ -6,12 +6,28 @@ from datetime import datetime, timedelta
 
 class OptionsProvider:
     def __init__(self):
-        # Simulate some PCR history
-        self.pcr_history = [round(random.uniform(0.7, 1.3), 2) for _ in range(10)]
+        # Track history for charts
+        # Format: {"time": ts, "pcr": val, "spot": val, "total_oi": val}
+        self.history = []
+        self._generate_initial_history()
+
+    def _generate_initial_history(self):
+        now = int(time.time())
+        spot = 22000.0
+        for i in range(50):
+            ts = now - (50 - i) * 60 # 1 minute intervals
+            spot += random.uniform(-20, 20)
+            pcr = round(random.uniform(0.7, 1.3), 2)
+            self.history.append({
+                "time": ts,
+                "pcr": pcr,
+                "spot": round(spot, 2),
+                "total_oi": random.randint(1000000, 2000000)
+            })
 
     def get_option_chain(self, symbol: str, spot_price: float) -> Dict[str, Any]:
         """
-        Generates an enhanced mock option chain with OI and PCR analysis.
+        Generates an enhanced option chain with OI and PCR analysis, including history.
         """
         if spot_price > 5000:
             interval = 100
@@ -21,7 +37,7 @@ class OptionsProvider:
             interval = 5
 
         atm_strike = round(spot_price / interval) * interval
-        strikes = [atm_strike + (i * interval) for i in range(-10, 11)]
+        strikes = [atm_strike + (i * interval) for i in range(-12, 13)]
 
         today = datetime.now()
         days_until_thursday = (3 - today.weekday()) % 7
@@ -29,10 +45,12 @@ class OptionsProvider:
         expiry_date = (today + timedelta(days=days_until_thursday)).strftime("%d-%b-%Y")
 
         chain = []
-        iv_base = 15.0 + random.uniform(-2, 2)
+        iv_base = 15.0 + random.uniform(-1, 1)
 
         total_call_oi = 0
         total_put_oi = 0
+        total_call_vol = 0
+        total_put_vol = 0
 
         for strike in strikes:
             dte = max(days_until_thursday, 0.5) / 365.0
@@ -58,8 +76,13 @@ class OptionsProvider:
             call_oi = int(oi_base * random.uniform(0.8, 1.2))
             put_oi = int(oi_base * random.uniform(0.8, 1.2))
 
+            call_vol = int(oi_base * random.uniform(2, 5))
+            put_vol = int(oi_base * random.uniform(2, 5))
+
             total_call_oi += call_oi
             total_put_oi += put_oi
+            total_call_vol += call_vol
+            total_put_vol += put_vol
 
             chain.append({
                 "strike": strike,
@@ -69,6 +92,7 @@ class OptionsProvider:
                     "iv": round(sigma * 100, 2),
                     "oi": call_oi,
                     "oi_change": round(random.uniform(-10, 10), 2),
+                    "volume": call_vol,
                     "delta": round(call_delta, 3),
                     "theta": round(-random.uniform(1, 10), 2),
                     "vega": round(random.uniform(0.1, 2), 2),
@@ -80,6 +104,7 @@ class OptionsProvider:
                     "iv": round(sigma * 100, 2),
                     "oi": put_oi,
                     "oi_change": round(random.uniform(-10, 10), 2),
+                    "volume": put_vol,
                     "delta": round(put_delta, 3),
                     "theta": round(-random.uniform(1, 10), 2),
                     "vega": round(random.uniform(0.1, 2), 2),
@@ -88,18 +113,32 @@ class OptionsProvider:
             })
 
         pcr = round(total_put_oi / total_call_oi, 3) if total_call_oi > 0 else 0
-        self.pcr_history.append(pcr)
-        if len(self.pcr_history) > 20: self.pcr_history.pop(0)
+
+        # Update history
+        new_entry = {
+            "time": int(time.time()),
+            "pcr": pcr,
+            "spot": round(spot_price, 2),
+            "total_oi": total_call_oi + total_put_oi,
+            "total_vol": total_call_vol + total_put_vol
+        }
+
+        if not self.history or new_entry["time"] > self.history[-1]["time"] + 10:
+            self.history.append(new_entry)
+            if len(self.history) > 100: self.history.pop(0)
 
         return {
             "symbol": symbol,
             "spot": spot_price,
             "expiry": expiry_date,
             "pcr": pcr,
-            "pcr_change": round(pcr - self.pcr_history[-2], 3) if len(self.pcr_history) > 1 else 0,
+            "pcr_change": round(pcr - self.history[-2]["pcr"], 3) if len(self.history) > 1 else 0,
             "total_call_oi": total_call_oi,
             "total_put_oi": total_put_oi,
-            "chain": chain
+            "total_call_vol": total_call_vol,
+            "total_put_vol": total_put_vol,
+            "chain": chain,
+            "history": self.history
         }
 
 options_provider = OptionsProvider()

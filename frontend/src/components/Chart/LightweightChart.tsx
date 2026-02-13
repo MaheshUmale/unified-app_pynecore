@@ -10,6 +10,7 @@ import type {
   UTCTimestamp
 } from 'lightweight-charts';
 import { useChartSync } from '../../hooks/useChartSync';
+import type { FootprintData } from '../../types/chart';
 
 interface Drawing {
   type: 'trendline' | 'fibonacci' | 'horizontal' | 'vertical';
@@ -17,13 +18,15 @@ interface Drawing {
 }
 
 interface LightweightChartProps {
-  chartId?: string;
+  chartId: string;
   isSyncEnabled?: boolean;
   data: CandlestickData[];
   volumeData?: HistogramData[];
-  type?: 'candle' | 'line' | 'renko' | 'range';
+  type?: 'candle' | 'line' | 'renko' | 'range' | 'footprint' | 'tick';
+  footprint?: FootprintData;
   isDarkMode?: boolean;
-  onCrosshairMove?: (param: any) => void;
+  onCrosshairMove?: (chartId: string, param: MouseEventParams) => void;
+  onClick?: (chartId: string, param: MouseEventParams) => void;
   activeTool?: string;
   clearDrawings?: boolean;
   showSMA?: boolean;
@@ -31,13 +34,15 @@ interface LightweightChartProps {
 }
 
 const LightweightChart: React.FC<LightweightChartProps> = ({
-  chartId = 'default',
+  chartId,
   isSyncEnabled = false,
   data,
   volumeData,
   type = 'candle',
+  footprint,
   isDarkMode = true,
   onCrosshairMove,
+  onClick,
   activeTool,
   clearDrawings,
   showSMA = false,
@@ -55,6 +60,18 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [currentDrawing, setCurrentDrawing] = useState<Drawing | null>(null);
 
+  // Stable references for handlers
+  const onCrosshairMoveRef = useRef(onCrosshairMove);
+  const onClickRef = useRef(onClick);
+
+  useEffect(() => {
+    onCrosshairMoveRef.current = onCrosshairMove;
+  }, [onCrosshairMove]);
+
+  useEffect(() => {
+    onClickRef.current = onClick;
+  }, [onClick]);
+
   useEffect(() => {
     if (clearDrawings) {
       setDrawings([]);
@@ -62,94 +79,24 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
     }
   }, [clearDrawings]);
 
-  // Initial Chart Creation & Theme update
+  // Initial Chart Creation (Only once)
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    const colors = isDarkMode ? {
-      background: '#131722',
-      text: '#D1D4DC',
-      grid: '#2B2B43',
-    } : {
-      background: '#ffffff',
-      text: '#333333',
-      grid: '#f0f0f0',
-    };
-
     const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: colors.background },
-        textColor: colors.text,
-      },
-      grid: {
-        vertLines: { color: colors.grid },
-        horzLines: { color: colors.grid },
-      },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
-      crosshair: {
-        mode: 0,
-        vertLine: { labelBackgroundColor: colors.grid },
-        horzLine: { labelBackgroundColor: colors.grid },
-      },
-      timeScale: {
-        borderColor: colors.grid,
-        timeVisible: true,
-      },
-      rightPriceScale: {
-        borderColor: colors.grid,
-      },
+      crosshair: { mode: 0 },
+      timeScale: { timeVisible: true },
       localization: {
         locale: 'en-IN',
-        timeFormatter: (time: UTCTimestamp) => {
-          const date = new Date((time as number) * 1000);
-          return date.toLocaleTimeString('en-IN', {
-            timeZone: timezone === 'UTC' ? 'UTC' : 'Asia/Kolkata',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          });
-        }
       }
     });
 
     chartRef.current = chart;
 
-    if (type === 'line') {
-      seriesRef.current = chart.addSeries(LineSeries, {
-        color: '#2196F3',
-        lineWidth: 2,
-      });
-    } else {
-      seriesRef.current = chart.addSeries(CandlestickSeries, {
-        upColor: '#26a69a',
-        downColor: '#ef5350',
-        borderVisible: false,
-        wickUpColor: '#26a69a',
-        wickDownColor: '#ef5350',
-      });
-    }
-
-    volumeSeriesRef.current = chart.addSeries(HistogramSeries, {
-      color: '#26a69a',
-      priceFormat: { type: 'volume' },
-      priceScaleId: '',
-    });
-
-    chart.priceScale('').applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
-    });
-
-    smaSeriesRef.current = chart.addSeries(LineSeries, {
-      color: '#ff9800',
-      lineWidth: 2,
-      visible: showSMA,
-      title: 'SMA 20',
-    });
-
     const handleCrosshairMove = (param: MouseEventParams) => {
-      if (onCrosshairMove) onCrosshairMove(param);
+      if (onCrosshairMoveRef.current) onCrosshairMoveRef.current(chartId, param);
 
       if (isSyncEnabled && param.time && param.point) {
         broadcast({
@@ -161,7 +108,12 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
       }
     };
 
+    const handleClick = (param: MouseEventParams) => {
+      if (onClickRef.current) onClickRef.current(chartId, param);
+    };
+
     chart.subscribeCrosshairMove(handleCrosshairMove);
+    chart.subscribeClick(handleClick);
 
     chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
       if (isSyncEnabled && range) {
@@ -170,8 +122,8 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
     });
 
     const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
           height: chartContainerRef.current.clientHeight,
         });
@@ -184,7 +136,6 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(chartContainerRef.current);
-    handleResize();
 
     setIsChartReady(true);
 
@@ -192,9 +143,94 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
       setIsChartReady(false);
       resizeObserver.disconnect();
       chart.unsubscribeCrosshairMove(handleCrosshairMove);
+      chart.unsubscribeClick(handleClick);
       chart.remove();
+      chartRef.current = null;
     };
-  }, [type, onCrosshairMove, isDarkMode, isSyncEnabled, broadcast, timezone]);
+  }, [chartId]); // Only recreate if chartId changes
+
+  // Update Theme & Localization
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    const colors = isDarkMode ? {
+      background: '#131722',
+      text: '#D1D4DC',
+      grid: '#2B2B43',
+    } : {
+      background: '#ffffff',
+      text: '#333333',
+      grid: '#f0f0f0',
+    };
+
+    chartRef.current.applyOptions({
+      layout: {
+        background: { type: ColorType.Solid, color: colors.background },
+        textColor: colors.text,
+      },
+      grid: {
+        vertLines: { color: colors.grid },
+        horzLines: { color: colors.grid },
+      },
+      localization: {
+        timeFormatter: (time: UTCTimestamp) => {
+          const date = new Date((time as number) * 1000);
+          return date.toLocaleTimeString('en-IN', {
+            timeZone: timezone === 'UTC' ? 'UTC' : 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+        }
+      }
+    });
+  }, [isDarkMode, timezone]);
+
+  // Update Series Type
+  useEffect(() => {
+    if (!isChartReady || !chartRef.current) return;
+
+    // Clear existing series
+    if (seriesRef.current) chartRef.current.removeSeries(seriesRef.current);
+    if (volumeSeriesRef.current) chartRef.current.removeSeries(volumeSeriesRef.current);
+    if (smaSeriesRef.current) chartRef.current.removeSeries(smaSeriesRef.current);
+
+    if (type === 'line' || type === 'tick') {
+      seriesRef.current = chartRef.current.addSeries(LineSeries, {
+        color: type === 'tick' ? '#2962FF' : '#2196F3',
+        lineWidth: 2,
+      });
+    } else {
+      seriesRef.current = chartRef.current.addSeries(CandlestickSeries, {
+        upColor: '#26a69a',
+        downColor: '#ef5350',
+        borderVisible: false,
+        wickUpColor: '#26a69a',
+        wickDownColor: '#ef5350',
+        visible: type !== 'footprint',
+      });
+    }
+
+    volumeSeriesRef.current = chartRef.current.addSeries(HistogramSeries, {
+      color: '#26a69a',
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      visible: type !== 'footprint',
+    });
+
+    chartRef.current.priceScale('').applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    });
+
+    smaSeriesRef.current = chartRef.current.addSeries(LineSeries, {
+      color: '#ff9800',
+      lineWidth: 2,
+      visible: showSMA && type !== 'tick',
+      title: 'SMA 20',
+    });
+
+  }, [isChartReady, type, showSMA]);
 
   // Sync Listener
   useEffect(() => {
@@ -212,8 +248,8 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 
   // Data Updates
   useEffect(() => {
-    if (isChartReady && seriesRef.current && data.length > 0) {
-      if (type === 'line') {
+    if (isChartReady && seriesRef.current) {
+      if (type === 'line' || type === 'tick') {
         const lineData: LineData[] = data.map(d => ({
           time: d.time,
           value: d.close,
@@ -222,10 +258,9 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
       } else {
         seriesRef.current.setData(data);
       }
-      chartRef.current?.timeScale().fitContent();
 
       // Update SMA
-      if (smaSeriesRef.current) {
+      if (smaSeriesRef.current && type !== 'tick') {
         const period = 20;
         const smaData: LineData[] = [];
         for (let i = period - 1; i < data.length; i++) {
@@ -248,7 +283,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
     }
   }, [volumeData]);
 
-  // Handle Drawing Logic
+  // Handle Drawing & Footprint Logic
   useEffect(() => {
     const chart = chartRef.current;
     const series = seriesRef.current;
@@ -258,8 +293,54 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const renderDrawings = () => {
+    const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Footprint
+      if (type === 'footprint' && footprint) {
+        const timeScale = chart.timeScale();
+        const barWidth = timeScale.options().barSpacing * 0.8;
+
+        Object.entries(footprint).forEach(([bucketStr, levels]) => {
+          const bucket = parseInt(bucketStr);
+          const x = timeScale.timeToCoordinate(bucket as any);
+          if (x === null || x < 0 || x > canvas.width) return;
+
+          const candle = data.find(d => d.time === bucket);
+          if (candle) {
+             const yOpen = series.priceToCoordinate(candle.open);
+             const yClose = series.priceToCoordinate(candle.close);
+             if (yOpen !== null && yClose !== null) {
+                ctx.fillStyle = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+                ctx.fillRect(x - barWidth/2, Math.min(yOpen, yClose), barWidth, Math.abs(yOpen - yClose) || 1);
+             }
+          }
+
+          levels.forEach(level => {
+            const y = series.priceToCoordinate(level.price);
+            if (y === null || y < 0 || y > canvas.height) return;
+            const total = level.buy + level.sell;
+            if (total === 0) return;
+            const h = Math.max(timeScale.options().barSpacing / 10, 2);
+            const buyW = (level.buy / total) * (barWidth / 2);
+            ctx.fillStyle = 'rgba(38, 166, 154, 0.6)';
+            ctx.fillRect(x, y - h/2, buyW, h);
+            const sellW = (level.sell / total) * (barWidth / 2);
+            ctx.fillStyle = 'rgba(239, 83, 80, 0.6)';
+            ctx.fillRect(x - sellW, y - h/2, sellW, h);
+            if (timeScale.options().barSpacing > 50) {
+                ctx.fillStyle = isDarkMode ? '#fff' : '#000';
+                ctx.font = '8px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(level.sell.toString(), x - 2, y + 3);
+                ctx.textAlign = 'left';
+                ctx.fillText(level.buy.toString(), x + 2, y + 3);
+            }
+          });
+        });
+      }
+
+      // 2. Drawings
       const allDrawings = [...drawings, ...(currentDrawing ? [currentDrawing] : [])];
 
       allDrawings.forEach(drawing => {
@@ -389,7 +470,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 
     let animationId: number;
     const loop = () => {
-      renderDrawings();
+      render();
       animationId = requestAnimationFrame(loop);
     };
     animationId = requestAnimationFrame(loop);
@@ -399,7 +480,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       cancelAnimationFrame(animationId);
     };
-  }, [drawings, currentDrawing, activeTool, isDarkMode]);
+  }, [drawings, currentDrawing, activeTool, isDarkMode, type, footprint, data]);
 
   return (
     <div className="relative w-full h-full">

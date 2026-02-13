@@ -7,7 +7,15 @@ export interface OHLC {
   volume?: number;
 }
 
-export type ChartType = 'candle' | 'line' | 'renko' | 'range';
+export type ChartType = 'candle' | 'line' | 'renko' | 'range' | 'footprint' | 'tick';
+
+export interface FootprintLevel {
+  price: number;
+  buy: number;
+  sell: number;
+}
+
+export type FootprintData = Record<number, FootprintLevel[]>;
 
 export interface DrawingTool {
   type: 'trendline' | 'fibonacci';

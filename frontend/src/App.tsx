@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('tv-theme') !== 'light');
   const [activeTool, setActiveTool] = useState('cursor');
   const [paneData, setPaneData] = useState<Record<string, OHLC[]>>({});
+  const [footprintData, setFootprintData] = useState<Record<string, any>>({});
   const [clearDrawingsToggle, setClearDrawingsToggle] = useState(false);
   const [showSMA, setShowSMA] = useState(false);
   const [isSyncEnabled, setIsSyncEnabled] = useState(true);
@@ -65,7 +66,20 @@ const App: React.FC = () => {
     localStorage.setItem('tv-timezone', timezone);
   }, [layout, paneConfigs, isDarkMode, timezone]);
 
-  const activePane = paneConfigs.find(p => p.id === activePaneId) || paneConfigs[0];
+  const activePane = useMemo(() => paneConfigs.find(p => p.id === activePaneId) || paneConfigs[0], [paneConfigs, activePaneId]);
+
+  const fetchFootprint = useCallback(async (paneId: string, symbol: string, interval: string) => {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5051';
+    try {
+      const res = await fetch(`${backendUrl}/api/tv/footprint/${encodeURIComponent(symbol)}?interval=${interval}`);
+      if (res.ok) {
+        const data = await res.json();
+        setFootprintData(prev => ({ ...prev, [paneId]: data }));
+      }
+    } catch (e) {
+      console.error("Footprint fetch error", e);
+    }
+  }, []);
 
   const fetchPaneData = useCallback(async (paneId: string, symbol: string, interval: string) => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5051';
@@ -119,6 +133,9 @@ const App: React.FC = () => {
     visiblePanes.forEach(pane => {
       socketService.subscribe(pane.symbol, pane.interval);
       fetchPaneData(pane.id, pane.symbol, pane.interval);
+      if (pane.chartType === 'footprint') {
+        fetchFootprint(pane.id, pane.symbol, pane.interval);
+      }
     });
 
     const handleTick = (data: any) => {
@@ -136,19 +153,29 @@ const App: React.FC = () => {
           const currentOHLC = next[pane.id] || [];
           const lastCandle = currentOHLC[currentOHLC.length - 1];
 
-          if (!lastCandle || candleTime > lastCandle.time) {
+          if (pane.chartType === 'tick') {
+            let tickTime = ts;
+            if (lastCandle && tickTime <= lastCandle.time) {
+              tickTime = lastCandle.time + 1;
+            }
             next[pane.id] = [...currentOHLC, {
-              time: candleTime, open: price, high: price, low: price, close: price, volume: Number(quote.ltq || 0)
-            }];
-          } else if (candleTime === lastCandle.time) {
-            const updated = [...currentOHLC];
-            const candle = { ...updated[updated.length - 1] };
-            candle.close = price;
-            candle.high = Math.max(candle.high, price);
-            candle.low = Math.min(candle.low, price);
-            candle.volume = (candle.volume || 0) + Number(quote.ltq || 0);
-            updated[updated.length - 1] = candle;
-            next[pane.id] = updated;
+              time: tickTime, open: price, high: price, low: price, close: price, volume: Number(quote.ltq || 0)
+            }].slice(-2000);
+          } else {
+            if (!lastCandle || candleTime > lastCandle.time) {
+              next[pane.id] = [...currentOHLC, {
+                time: candleTime, open: price, high: price, low: price, close: price, volume: Number(quote.ltq || 0)
+              }];
+            } else if (candleTime === lastCandle.time) {
+              const updated = [...currentOHLC];
+              const candle = { ...updated[updated.length - 1] };
+              candle.close = price;
+              candle.high = Math.max(candle.high, price);
+              candle.low = Math.min(candle.low, price);
+              candle.volume = (candle.volume || 0) + Number(quote.ltq || 0);
+              updated[updated.length - 1] = candle;
+              next[pane.id] = updated;
+            }
           }
         });
         return next;
@@ -179,6 +206,7 @@ const App: React.FC = () => {
         symbol: pane.symbol,
         interval: pane.interval,
         type: pane.chartType,
+        footprint: footprintData[pane.id],
         data: transformed.map(d => ({
           time: d.time as any,
           open: d.open,
@@ -321,12 +349,15 @@ const App: React.FC = () => {
                isSyncEnabled={isSyncEnabled}
                showSMA={showSMA}
                timezone={timezone}
-               onCrosshairMove={(id, param) => {
+               onCrosshairMove={useCallback((id: string) => {
+                 setActivePaneId(id);
+               }, [])}
+               onClick={useCallback((id: string, param: any) => {
                  setActivePaneId(id);
                  if (isCutMode && param.time) {
                    handleReplayCut(param.time);
                  }
-               }}
+               }, [isCutMode, handleReplayCut])}
             />
           </div>
 

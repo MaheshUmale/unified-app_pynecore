@@ -180,6 +180,74 @@ async def get_intraday(instrument_key: str, interval: str = '1', to_ts: Optional
         logger.error(f"Error in intraday fetch: {e}")
         return {"candles": []}
 
+@fastapi_app.get("/api/tv/footprint/{instrument_key}")
+async def get_footprint(instrument_key: str, interval: str = '1', n_candles: int = 10):
+    """Fetch volume footprint (buy/sell at price) for recent candles."""
+    try:
+        clean_key = unquote(instrument_key)
+
+        interval_map = {'1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600, 'D': 86400}
+        duration = interval_map.get(interval, 60)
+
+        # SQL to aggregate footprint using the Tick Rule
+        # We look at ticks in the range of the last n_candles
+        sql = f"""
+            WITH raw_ticks AS (
+                SELECT ts_ms, price, qty
+                FROM ticks
+                WHERE instrumentKey = ?
+                ORDER BY ts_ms ASC
+            ),
+            tick_sides AS (
+                SELECT
+                    ts_ms,
+                    price,
+                    qty,
+                    LAG(price) OVER (ORDER BY ts_ms) as prev_price
+                FROM raw_ticks
+            ),
+            classified AS (
+                SELECT
+                    (ts_ms / 1000 / {duration}) * {duration} as bucket,
+                    price,
+                    qty,
+                    CASE
+                        WHEN price > prev_price THEN 'buy'
+                        WHEN price < prev_price THEN 'sell'
+                        ELSE 'buy' -- Default to buy or use previous side if we wanted to be complex
+                    END as side
+                FROM tick_sides
+            )
+            SELECT
+                bucket,
+                price,
+                SUM(CASE WHEN side = 'buy' THEN qty ELSE 0 END) as buy_vol,
+                SUM(CASE WHEN side = 'sell' THEN qty ELSE 0 END) as sell_vol
+            FROM classified
+            GROUP BY bucket, price
+            ORDER BY bucket DESC, price DESC
+        """
+
+        # For performance, we might want to limit the raw_ticks first by time
+        # but let's try this for now.
+        res = db.query(sql, (clean_key,))
+
+        # Group by bucket for easier frontend consumption
+        footprint = {}
+        for r in res:
+            b = int(r['bucket'])
+            if b not in footprint: footprint[b] = []
+            footprint[b].append({
+                "price": float(r['price']),
+                "buy": int(r['buy_vol']),
+                "sell": int(r['sell_vol'])
+            })
+
+        return footprint
+    except Exception as e:
+        logger.error(f"Error in footprint fetch: {e}")
+        return {}
+
 # Serve the React frontend from the frontend/dist directory
 frontend_dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
