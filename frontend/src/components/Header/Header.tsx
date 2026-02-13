@@ -10,6 +10,8 @@ interface HeaderProps {
   onIntervalChange: (interval: string) => void;
   chartType: ChartType;
   onChartTypeChange: (type: ChartType) => void;
+  ticksPerCandle: number;
+  onTicksPerCandleChange: (ticks: number) => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   showSMA: boolean;
@@ -51,6 +53,8 @@ const Header: React.FC<HeaderProps> = ({
   onIntervalChange,
   chartType,
   onChartTypeChange,
+  ticksPerCandle,
+  onTicksPerCandleChange,
   isDarkMode,
   toggleDarkMode,
   showSMA,
@@ -108,6 +112,24 @@ const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="h-6 w-px bg-tv-border mx-4" />
+
+        {chartType === 'tick' && (
+          <>
+            <div className="flex items-center gap-1 bg-[#1e222d] rounded px-2 py-1 mr-4">
+              <span className="text-[10px] text-gray-500 font-bold uppercase">Ticks</span>
+              <select
+                value={ticksPerCandle}
+                onChange={(e) => onTicksPerCandleChange(Number(e.target.value))}
+                className="bg-transparent text-[11px] font-bold text-blue-400 focus:outline-none cursor-pointer"
+              >
+                {[1, 5, 10, 20, 50, 100].map(v => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <div className="h-6 w-px bg-tv-border mr-4" />
+          </>
+        )}
 
         <div className="relative h-full flex items-center">
           <button
