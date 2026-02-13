@@ -18,6 +18,7 @@ interface ChartGridProps {
   configs: ChartPaneConfig[];
   isDarkMode: boolean;
   activeTool: string;
+  clearDrawings?: boolean;
   isSyncEnabled: boolean;
   showSMA: boolean;
   timezone: string;
@@ -29,6 +30,7 @@ const ChartGrid: React.FC<ChartGridProps> = ({
   configs,
   isDarkMode,
   activeTool,
+  clearDrawings,
   isSyncEnabled,
   showSMA,
   timezone,
@@ -63,6 +65,7 @@ const ChartGrid: React.FC<ChartGridProps> = ({
              type={config.type}
              isDarkMode={isDarkMode}
              activeTool={activeTool}
+             clearDrawings={clearDrawings}
              showSMA={showSMA}
              timezone={timezone}
              onCrosshairMove={(p) => onCrosshairMove?.(config.id, p)}

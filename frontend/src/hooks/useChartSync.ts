@@ -1,5 +1,5 @@
-import { useRef, useCallback } from 'react';
-import type { IChartApi, LogicalRange, MouseEventParams, ISeriesApi, SeriesType } from 'lightweight-charts';
+import { useCallback } from 'react';
+import type { LogicalRange } from 'lightweight-charts';
 
 export interface ChartSyncState {
   logicalRange?: LogicalRange;
@@ -17,7 +17,7 @@ class ChartSyncManager {
 
   subscribe(id: string, callback: SyncCallback) {
     this.subscribers.set(id, callback);
-    return () => this.subscribers.delete(id);
+    return () => { this.subscribers.delete(id); };
   }
 
   broadcast(sourceId: string, state: ChartSyncState) {
@@ -35,7 +35,7 @@ export const useChartSync = (chartId: string) => {
   const syncManager = globalSyncManager;
 
   const handleSync = useCallback((callback: (state: ChartSyncState) => void) => {
-    return syncManager.subscribe(chartId, (sourceId, state) => {
+    return syncManager.subscribe(chartId, (_sourceId, state) => {
       callback(state);
     });
   }, [chartId]);
