@@ -8,9 +8,10 @@ interface ChartPaneConfig {
   id: string;
   symbol: string;
   interval: string;
-  type: 'candle' | 'line' | 'renko' | 'range';
+  type: 'candle' | 'line' | 'renko' | 'range' | 'footprint' | 'tick';
   data: CandlestickData[];
   volumeData?: HistogramData[];
+  footprint?: any;
 }
 
 interface ChartGridProps {
@@ -23,6 +24,7 @@ interface ChartGridProps {
   showSMA: boolean;
   timezone: string;
   onCrosshairMove?: (chartId: string, param: any) => void;
+  onClick?: (chartId: string, param: any) => void;
 }
 
 const ChartGrid: React.FC<ChartGridProps> = ({
@@ -34,7 +36,8 @@ const ChartGrid: React.FC<ChartGridProps> = ({
   isSyncEnabled,
   showSMA,
   timezone,
-  onCrosshairMove
+  onCrosshairMove,
+  onClick
 }) => {
   const getGridClass = () => {
     switch (layout) {
@@ -63,12 +66,14 @@ const ChartGrid: React.FC<ChartGridProps> = ({
              data={config.data}
              volumeData={config.volumeData}
              type={config.type}
+             footprint={config.footprint}
              isDarkMode={isDarkMode}
              activeTool={activeTool}
              clearDrawings={clearDrawings}
              showSMA={showSMA}
              timezone={timezone}
-             onCrosshairMove={(p) => onCrosshairMove?.(config.id, p)}
+             onCrosshairMove={onCrosshairMove}
+             onClick={onClick}
            />
         </div>
       ))}

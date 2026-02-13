@@ -40,6 +40,8 @@ const chartTypes: { label: string; value: ChartType; icon: any }[] = [
   { label: 'Line', value: 'line', icon: TrendingUp },
   { label: 'RENKO CANDLESTICKS', value: 'renko', icon: Hash },
   { label: 'RANGEBAR', value: 'range', icon: Activity },
+  { label: 'Volume Footprint', value: 'footprint', icon: BarChart2 },
+  { label: 'Tick by Tick', value: 'tick', icon: Activity },
 ];
 
 const Header: React.FC<HeaderProps> = ({
