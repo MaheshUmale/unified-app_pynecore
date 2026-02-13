@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Play, Pause, Square, ChevronRight, Scissors, X } from 'lucide-react';
 
 interface ReplayBarProps {

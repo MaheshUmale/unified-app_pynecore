@@ -10,7 +10,6 @@ import type { ChartType, OHLC } from './types/chart';
 import { calculateRenko } from './utils/renko';
 import { calculateRangeBars } from './utils/rangeBar';
 import { socketService } from './services/socket';
-import type { CandlestickData, HistogramData } from 'lightweight-charts';
 
 interface PaneConfig {
   id: string;
@@ -28,10 +27,6 @@ const App: React.FC = () => {
   });
 
   const [paneConfigs, setPaneConfigs] = useState<PaneConfig[]>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const symbolParam = params.get('symbol');
-    const intervalParam = params.get('interval');
-
     const saved = localStorage.getItem('tv-panes');
     let panes: PaneConfig[] = saved ? JSON.parse(saved) : [
       { id: 'pane-1', symbol: 'NSE:NIFTY', interval: '1', chartType: 'candle' },
@@ -208,12 +203,10 @@ const App: React.FC = () => {
   const [isCutMode, setIsCutMode] = useState(false);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
   const [replaySpeed, setReplaySpeed] = useState(1000);
-  const [replayTimestamp, setReplayTimestamp] = useState<number | null>(null);
   const [replayBuffer, setReplayBuffer] = useState<OHLC[]>([]);
 
   const handleReplayCut = useCallback(async (timestamp: number) => {
     if (!isCutMode) return;
-    setReplayTimestamp(timestamp);
     setIsCutMode(false);
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5051';
@@ -324,6 +317,7 @@ const App: React.FC = () => {
                configs={gridConfigs as any}
                isDarkMode={isDarkMode}
                activeTool={activeTool}
+               clearDrawings={clearDrawingsToggle}
                isSyncEnabled={isSyncEnabled}
                showSMA={showSMA}
                timezone={timezone}

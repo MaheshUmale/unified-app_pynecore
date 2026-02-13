@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, ChevronDown, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { X, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface OptionChainProps {
   symbol: string;
@@ -25,7 +25,7 @@ interface OptionData {
   put: OptionLeg;
 }
 
-const OptionChain: React.FC<OptionChainProps> = ({ symbol, onClose, isDarkMode }) => {
+const OptionChain: React.FC<OptionChainProps> = ({ symbol, onClose, isDarkMode: _isDarkMode }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showGreeks, setShowGreeks] = useState(false);
