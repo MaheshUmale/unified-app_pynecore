@@ -17,6 +17,8 @@ interface PaneConfig {
   interval: string;
   chartType: ChartType;
   ticksPerCandle?: number;
+  renkoSize?: number;
+  rangeValue?: number;
 }
 
 const App: React.FC = () => {
@@ -30,12 +32,17 @@ const App: React.FC = () => {
   const [paneConfigs, setPaneConfigs] = useState<PaneConfig[]>(() => {
     const saved = localStorage.getItem('tv-panes');
     let panes: PaneConfig[] = saved ? JSON.parse(saved) : [
-      { id: 'pane-1', symbol: 'NSE:NIFTY', interval: '1', chartType: 'candle', ticksPerCandle: 1 },
-      { id: 'pane-2', symbol: 'NSE:BANKNIFTY', interval: '5', chartType: 'candle', ticksPerCandle: 1 },
-      { id: 'pane-3', symbol: 'NSE:FINNIFTY', interval: '15', chartType: 'candle', ticksPerCandle: 1 },
-      { id: 'pane-4', symbol: 'NSE:INDIAVIX', interval: '60', chartType: 'candle', ticksPerCandle: 1 },
+      { id: 'pane-1', symbol: 'NSE:NIFTY', interval: '1', chartType: 'candle', ticksPerCandle: 1, renkoSize: 10, rangeValue: 15 },
+      { id: 'pane-2', symbol: 'NSE:BANKNIFTY', interval: '5', chartType: 'candle', ticksPerCandle: 1, renkoSize: 10, rangeValue: 15 },
+      { id: 'pane-3', symbol: 'NSE:FINNIFTY', interval: '15', chartType: 'candle', ticksPerCandle: 1, renkoSize: 10, rangeValue: 15 },
+      { id: 'pane-4', symbol: 'NSE:INDIAVIX', interval: '60', chartType: 'candle', ticksPerCandle: 1, renkoSize: 10, rangeValue: 15 },
     ];
-    return panes.map(p => ({ ...p, ticksPerCandle: p.ticksPerCandle || 1 }));
+    return panes.map(p => ({
+      ...p,
+      ticksPerCandle: p.ticksPerCandle || 1,
+      renkoSize: p.renkoSize || 10,
+      rangeValue: p.rangeValue || 15
+    }));
   });
   const [activePaneId, setActivePaneId] = useState('pane-1');
   const tickCountsRef = useRef<Record<string, number>>({});
@@ -196,6 +203,28 @@ const App: React.FC = () => {
               updated[updated.length - 1] = candle;
               next[pane.id] = updated;
             }
+
+            if (pane.chartType === 'footprint') {
+              setFootprintData(prevFp => {
+                const paneFp = { ...(prevFp[pane.id] || {}) };
+                const levels = [...(paneFp[candleTime] || [])];
+
+                const side = lastCandle && price > lastCandle.close ? 'buy' : 'sell'; // Simplified Tick Rule
+                const qty = Number(quote.ltq || 1);
+
+                const idx = levels.findIndex(l => l.price === price);
+                if (idx === -1) {
+                  levels.push({ price, buy: side === 'buy' ? qty : 0, sell: side === 'sell' ? qty : 0 });
+                } else {
+                  const level = { ...levels[idx] };
+                  if (side === 'buy') level.buy += qty;
+                  else level.sell += qty;
+                  levels[idx] = level;
+                }
+
+                return { ...prevFp, [pane.id]: { ...paneFp, [candleTime]: levels } };
+              });
+            }
           }
         });
         return next;
@@ -216,9 +245,9 @@ const App: React.FC = () => {
 
       let transformed = raw;
       if (pane.chartType === 'renko') {
-        transformed = calculateRenko(raw, raw.length > 0 ? (raw[0].close > 1000 ? 10 : 2) : 2);
+        transformed = calculateRenko(raw, pane.renkoSize || 10);
       } else if (pane.chartType === 'range') {
-        transformed = calculateRangeBars(raw, raw.length > 0 ? (raw[0].close > 1000 ? 15 : 3) : 3);
+        transformed = calculateRangeBars(raw, pane.rangeValue || 15);
       }
 
       return {
@@ -322,6 +351,10 @@ const App: React.FC = () => {
         onChartTypeChange={(t) => updateActivePane({ chartType: t })}
         ticksPerCandle={activePane.ticksPerCandle || 1}
         onTicksPerCandleChange={(t) => updateActivePane({ ticksPerCandle: t })}
+        renkoSize={activePane.renkoSize || 10}
+        onRenkoSizeChange={(s) => updateActivePane({ renkoSize: s })}
+        rangeValue={activePane.rangeValue || 15}
+        onRangeValueChange={(v) => updateActivePane({ rangeValue: v })}
         isDarkMode={isDarkMode}
         toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         showSMA={showSMA}

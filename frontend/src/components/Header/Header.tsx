@@ -12,6 +12,10 @@ interface HeaderProps {
   onChartTypeChange: (type: ChartType) => void;
   ticksPerCandle: number;
   onTicksPerCandleChange: (ticks: number) => void;
+  renkoSize: number;
+  onRenkoSizeChange: (size: number) => void;
+  rangeValue: number;
+  onRangeValueChange: (value: number) => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   showSMA: boolean;
@@ -55,6 +59,10 @@ const Header: React.FC<HeaderProps> = ({
   onChartTypeChange,
   ticksPerCandle,
   onTicksPerCandleChange,
+  renkoSize,
+  onRenkoSizeChange,
+  rangeValue,
+  onRangeValueChange,
   isDarkMode,
   toggleDarkMode,
   showSMA,
@@ -126,6 +134,36 @@ const Header: React.FC<HeaderProps> = ({
                   <option key={v} value={v}>{v}</option>
                 ))}
               </select>
+            </div>
+            <div className="h-6 w-px bg-tv-border mr-4" />
+          </>
+        )}
+
+        {chartType === 'renko' && (
+          <>
+            <div className="flex items-center gap-1 bg-[#1e222d] rounded px-2 py-1 mr-4 border border-tv-border">
+              <span className="text-[10px] text-gray-500 font-bold uppercase">Brick</span>
+              <input
+                type="number"
+                value={renkoSize}
+                onChange={(e) => onRenkoSizeChange(Number(e.target.value))}
+                className="bg-transparent text-[11px] font-bold text-blue-400 focus:outline-none w-10 text-center"
+              />
+            </div>
+            <div className="h-6 w-px bg-tv-border mr-4" />
+          </>
+        )}
+
+        {chartType === 'range' && (
+          <>
+            <div className="flex items-center gap-1 bg-[#1e222d] rounded px-2 py-1 mr-4 border border-tv-border">
+              <span className="text-[10px] text-gray-500 font-bold uppercase">Range</span>
+              <input
+                type="number"
+                value={rangeValue}
+                onChange={(e) => onRangeValueChange(Number(e.target.value))}
+                className="bg-transparent text-[11px] font-bold text-blue-400 focus:outline-none w-10 text-center"
+              />
             </div>
             <div className="h-6 w-px bg-tv-border mr-4" />
           </>
