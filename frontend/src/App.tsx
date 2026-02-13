@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Header from './components/Header/Header';
 import Toolbar from './components/Toolbar/Toolbar';
 import Sidebar from './components/Sidebar/Sidebar';
@@ -16,6 +16,7 @@ interface PaneConfig {
   symbol: string;
   interval: string;
   chartType: ChartType;
+  ticksPerCandle?: number;
 }
 
 const App: React.FC = () => {
@@ -29,14 +30,15 @@ const App: React.FC = () => {
   const [paneConfigs, setPaneConfigs] = useState<PaneConfig[]>(() => {
     const saved = localStorage.getItem('tv-panes');
     let panes: PaneConfig[] = saved ? JSON.parse(saved) : [
-      { id: 'pane-1', symbol: 'NSE:NIFTY', interval: '1', chartType: 'candle' },
-      { id: 'pane-2', symbol: 'NSE:BANKNIFTY', interval: '5', chartType: 'candle' },
-      { id: 'pane-3', symbol: 'NSE:FINNIFTY', interval: '15', chartType: 'candle' },
-      { id: 'pane-4', symbol: 'NSE:INDIAVIX', interval: '60', chartType: 'candle' },
+      { id: 'pane-1', symbol: 'NSE:NIFTY', interval: '1', chartType: 'candle', ticksPerCandle: 1 },
+      { id: 'pane-2', symbol: 'NSE:BANKNIFTY', interval: '5', chartType: 'candle', ticksPerCandle: 1 },
+      { id: 'pane-3', symbol: 'NSE:FINNIFTY', interval: '15', chartType: 'candle', ticksPerCandle: 1 },
+      { id: 'pane-4', symbol: 'NSE:INDIAVIX', interval: '60', chartType: 'candle', ticksPerCandle: 1 },
     ];
-    return panes;
+    return panes.map(p => ({ ...p, ticksPerCandle: p.ticksPerCandle || 1 }));
   });
   const [activePaneId, setActivePaneId] = useState('pane-1');
+  const tickCountsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -154,13 +156,31 @@ const App: React.FC = () => {
           const lastCandle = currentOHLC[currentOHLC.length - 1];
 
           if (pane.chartType === 'tick') {
-            let tickTime = ts;
-            if (lastCandle && tickTime <= lastCandle.time) {
-              tickTime = lastCandle.time + 1;
+            const ticksPerCandle = pane.ticksPerCandle || 1;
+            const currentCount = tickCountsRef.current[pane.id] || 0;
+
+            if (!lastCandle || currentCount >= ticksPerCandle) {
+              // Start new candle
+              let tickTime = ts;
+              if (lastCandle && tickTime <= lastCandle.time) {
+                tickTime = lastCandle.time + 1;
+              }
+              next[pane.id] = [...currentOHLC, {
+                time: tickTime, open: price, high: price, low: price, close: price, volume: Number(quote.ltq || 0)
+              }].slice(-2000);
+              tickCountsRef.current[pane.id] = 1;
+            } else {
+              // Update existing candle
+              const updated = [...currentOHLC];
+              const candle = { ...updated[updated.length - 1] };
+              candle.close = price;
+              candle.high = Math.max(candle.high, price);
+              candle.low = Math.min(candle.low, price);
+              candle.volume = (candle.volume || 0) + Number(quote.ltq || 0);
+              updated[updated.length - 1] = candle;
+              next[pane.id] = updated;
+              tickCountsRef.current[pane.id] = currentCount + 1;
             }
-            next[pane.id] = [...currentOHLC, {
-              time: tickTime, open: price, high: price, low: price, close: price, volume: Number(quote.ltq || 0)
-            }].slice(-2000);
           } else {
             if (!lastCandle || candleTime > lastCandle.time) {
               next[pane.id] = [...currentOHLC, {
@@ -224,7 +244,20 @@ const App: React.FC = () => {
   }, [paneConfigs, paneData]);
 
   const updateActivePane = (updates: Partial<PaneConfig>) => {
-    setPaneConfigs(prev => prev.map(p => p.id === activePaneId ? { ...p, ...updates } : p));
+    setPaneConfigs(prev => prev.map(p => {
+      if (p.id === activePaneId) {
+        if (updates.chartType !== undefined && updates.chartType !== p.chartType) {
+          tickCountsRef.current[p.id] = 0;
+          setPaneData(pd => ({ ...pd, [p.id]: [] }));
+        } else if (updates.interval !== undefined && updates.interval !== p.interval) {
+          tickCountsRef.current[p.id] = 0;
+        } else if (updates.ticksPerCandle !== undefined && updates.ticksPerCandle !== p.ticksPerCandle) {
+          tickCountsRef.current[p.id] = 0;
+        }
+        return { ...p, ...updates };
+      }
+      return p;
+    }));
   };
 
   // Replay State
@@ -287,6 +320,8 @@ const App: React.FC = () => {
         onIntervalChange={(i) => updateActivePane({ interval: i })}
         chartType={activePane.chartType}
         onChartTypeChange={(t) => updateActivePane({ chartType: t })}
+        ticksPerCandle={activePane.ticksPerCandle || 1}
+        onTicksPerCandleChange={(t) => updateActivePane({ ticksPerCandle: t })}
         isDarkMode={isDarkMode}
         toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         showSMA={showSMA}
