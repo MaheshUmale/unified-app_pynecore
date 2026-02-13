@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, CandlestickSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
+import { createChart, ColorType } from 'lightweight-charts';
 import type {
   CandlestickData,
   HistogramData,
@@ -197,12 +197,12 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
     if (smaSeriesRef.current) chartRef.current.removeSeries(smaSeriesRef.current);
 
     if (type === 'line' || type === 'tick') {
-      seriesRef.current = chartRef.current.addSeries(LineSeries, {
+      seriesRef.current = chartRef.current.addLineSeries({
         color: type === 'tick' ? '#2962FF' : '#2196F3',
         lineWidth: 2,
       });
     } else {
-      seriesRef.current = chartRef.current.addSeries(CandlestickSeries, {
+      seriesRef.current = chartRef.current.addCandlestickSeries({
         upColor: '#26a69a',
         downColor: '#ef5350',
         borderVisible: false,
@@ -212,7 +212,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
       });
     }
 
-    volumeSeriesRef.current = chartRef.current.addSeries(HistogramSeries, {
+    volumeSeriesRef.current = chartRef.current.addHistogramSeries({
       color: '#26a69a',
       priceFormat: { type: 'volume' },
       priceScaleId: '',
@@ -223,7 +223,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
       scaleMargins: { top: 0.8, bottom: 0 },
     });
 
-    smaSeriesRef.current = chartRef.current.addSeries(LineSeries, {
+    smaSeriesRef.current = chartRef.current.addLineSeries({
       color: '#ff9800',
       lineWidth: 2,
       visible: showSMA && type !== 'tick',

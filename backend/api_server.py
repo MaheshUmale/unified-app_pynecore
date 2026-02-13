@@ -23,6 +23,9 @@ from core.options_provider import options_provider
 from external.tv_api import tv_api
 from db.local_db import db
 
+# Create logs directory if it doesn't exist
+os.makedirs("logs", exist_ok=True)
+
 # Configure Logging
 dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
