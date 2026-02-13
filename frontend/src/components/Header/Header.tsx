@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Moon, Sun, LayoutGrid, ChevronDown, BarChart2, TrendingUp, Hash, Activity, FlaskConical } from 'lucide-react';
+import { Search, Moon, Sun, LayoutGrid, ChevronDown, BarChart2, TrendingUp, Hash, Activity, FlaskConical, PlayCircle, Table, Link } from 'lucide-react';
 import type { ChartType } from '../../types/chart';
+import type { LayoutType } from '../Chart/ChartGrid';
 
 interface HeaderProps {
   symbol: string;
@@ -13,6 +14,16 @@ interface HeaderProps {
   toggleDarkMode: () => void;
   showSMA: boolean;
   onToggleSMA: () => void;
+  layout: LayoutType;
+  onLayoutChange: (layout: LayoutType) => void;
+  isSyncEnabled: boolean;
+  onToggleSync: () => void;
+  isReplayActive: boolean;
+  onToggleReplay: () => void;
+  showOptions: boolean;
+  onToggleOptions: () => void;
+  timezone: string;
+  onTimezoneChange: (tz: string) => void;
 }
 
 const timeframes = [
@@ -41,10 +52,21 @@ const Header: React.FC<HeaderProps> = ({
   isDarkMode,
   toggleDarkMode,
   showSMA,
-  onToggleSMA
+  onToggleSMA,
+  layout,
+  onLayoutChange,
+  isSyncEnabled,
+  onToggleSync,
+  isReplayActive,
+  onToggleReplay,
+  showOptions,
+  onToggleOptions,
+  timezone,
+  onTimezoneChange
 }) => {
   const [showChartTypes, setShowChartTypes] = useState(false);
   const [showIndicators, setShowIndicators] = useState(false);
+  const [showLayouts, setShowLayouts] = useState(false);
   const CurrentChartIcon = chartTypes.find(ct => ct.value === chartType)?.icon || BarChart2;
 
   return (
@@ -155,10 +177,79 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <button className="p-2 hover:bg-tv-grid rounded transition-colors text-tv-text">
-          <LayoutGrid className="w-5 h-5" />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onToggleReplay}
+          className={`p-2 rounded transition-colors ${isReplayActive ? 'text-blue-500 bg-blue-500/10' : 'text-tv-text hover:bg-tv-grid'}`}
+          title="Bar Replay"
+        >
+          <PlayCircle className="w-5 h-5" />
         </button>
+
+        <button
+          onClick={onToggleOptions}
+          className={`p-2 rounded transition-colors ${showOptions ? 'text-blue-500 bg-blue-500/10' : 'text-tv-text hover:bg-tv-grid'}`}
+          title="Option Chain"
+        >
+          <Table className="w-5 h-5" />
+        </button>
+
+        <div className="h-6 w-px bg-tv-border mx-1" />
+
+        <button
+          onClick={onToggleSync}
+          className={`p-2 rounded transition-colors ${isSyncEnabled ? 'text-blue-500 bg-blue-500/10' : 'text-tv-text hover:bg-tv-grid'}`}
+          title="Sync Crosshair/Time"
+        >
+          <Link className={`w-5 h-5 ${isSyncEnabled ? 'rotate-45' : ''}`} />
+        </button>
+
+        <div className="h-6 w-px bg-tv-border mx-1" />
+
+        <div className="flex items-center bg-[#1e222d] rounded border border-tv-border px-2 py-1">
+          <span className="text-[10px] text-gray-500 mr-2 font-bold uppercase">TZ</span>
+          <select
+            value={timezone}
+            onChange={(e) => onTimezoneChange(e.target.value)}
+            className="bg-transparent text-[11px] font-bold text-blue-400 focus:outline-none cursor-pointer"
+          >
+            <option value="UTC">UTC</option>
+            <option value="Asia/Kolkata">IST</option>
+          </select>
+        </div>
+
+        <div className="h-6 w-px bg-tv-border mx-1" />
+
+        <div className="relative">
+          <button
+            onClick={() => setShowLayouts(!showLayouts)}
+            className={`p-2 rounded transition-colors ${showLayouts ? 'text-blue-500 bg-blue-500/10' : 'text-tv-text hover:bg-tv-grid'}`}
+          >
+            <LayoutGrid className="w-5 h-5" />
+          </button>
+          {showLayouts && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowLayouts(false)} />
+              <div className="absolute top-[calc(100%+8px)] right-0 w-32 bg-[#1e222d] border border-tv-border rounded shadow-xl z-50 py-1">
+                {(['1x1', '1x2', '2x1', '2x2'] as LayoutType[]).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => {
+                      onLayoutChange(l);
+                      setShowLayouts(false);
+                    }}
+                    className={`w-full px-4 py-2 text-sm text-left transition-colors ${
+                      layout === l ? 'bg-blue-600/20 text-blue-500' : 'text-tv-text hover:bg-tv-grid'
+                    }`}
+                  >
+                    {l} Grid
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
         <button
           onClick={toggleDarkMode}
           className="p-2 hover:bg-tv-grid rounded transition-colors text-tv-text"

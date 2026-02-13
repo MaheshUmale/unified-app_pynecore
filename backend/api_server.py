@@ -19,6 +19,7 @@ from config import LOGGING_CONFIG, INITIAL_INSTRUMENTS, SERVER_PORT
 from core import data_engine
 from core.provider_registry import initialize_default_providers
 from core.symbol_mapper import symbol_mapper
+from core.options_provider import options_provider
 from external.tv_api import tv_api
 from db.local_db import db
 
@@ -144,15 +145,31 @@ async def tv_search(text: str = Query(..., min_length=1)):
 
     return {"symbols": []}
 
+@fastapi_app.get("/api/options-chain")
+async def get_options_chain(symbol: str = "NSE:NIFTY"):
+    """Fetch option chain for a given symbol."""
+    try:
+        # First get the last price of the symbol to center the chain
+        res = await asyncio.to_thread(tv_api.get_hist_candles, symbol, "1", 1)
+        spot_price = 25000.0 # Default fallback
+        if res and len(res) > 0:
+            spot_price = res[0][4] # Last close
+
+        chain = options_provider.get_option_chain(symbol, spot_price)
+        return chain
+    except Exception as e:
+        logger.error(f"Error in options chain fetch: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @fastapi_app.get("/api/tv/intraday/{instrument_key}")
-async def get_intraday(instrument_key: str, interval: str = '1'):
+async def get_intraday(instrument_key: str, interval: str = '1', to_ts: Optional[int] = None):
     """Fetch intraday candles for the charting library."""
     try:
         clean_key = unquote(instrument_key)
         hrn = symbol_mapper.get_hrn(clean_key)
 
         # Use ThreadPoolExecutor for blocking network call
-        tv_candles = await asyncio.to_thread(tv_api.get_hist_candles, clean_key, interval, 1000)
+        tv_candles = await asyncio.to_thread(tv_api.get_hist_candles, clean_key, interval, 1000, to_ts)
 
         return {
             "instrumentKey": clean_key,

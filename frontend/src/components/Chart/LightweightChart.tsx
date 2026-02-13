@@ -1,6 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CandlestickSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
-import type { CandlestickData, HistogramData, IChartApi, ISeriesApi, LineData } from 'lightweight-charts';
+import type {
+  CandlestickData,
+  HistogramData,
+  IChartApi,
+  ISeriesApi,
+  LineData,
+  MouseEventParams,
+  UTCTimestamp
+} from 'lightweight-charts';
+import { useChartSync } from '../../hooks/useChartSync';
 
 interface Drawing {
   type: 'trendline' | 'fibonacci' | 'horizontal' | 'vertical';
@@ -8,6 +17,8 @@ interface Drawing {
 }
 
 interface LightweightChartProps {
+  chartId?: string;
+  isSyncEnabled?: boolean;
   data: CandlestickData[];
   volumeData?: HistogramData[];
   type?: 'candle' | 'line' | 'renko' | 'range';
@@ -16,9 +27,12 @@ interface LightweightChartProps {
   activeTool?: string;
   clearDrawings?: boolean;
   showSMA?: boolean;
+  timezone?: string;
 }
 
 const LightweightChart: React.FC<LightweightChartProps> = ({
+  chartId = 'default',
+  isSyncEnabled = false,
   data,
   volumeData,
   type = 'candle',
@@ -26,8 +40,10 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
   onCrosshairMove,
   activeTool,
   clearDrawings,
-  showSMA = false
+  showSMA = false,
+  timezone = 'Asia/Kolkata'
 }) => {
+  const { handleSync, broadcast } = useChartSync(chartId);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -83,6 +99,19 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
       rightPriceScale: {
         borderColor: colors.grid,
       },
+      localization: {
+        locale: 'en-IN',
+        timeFormatter: (time: UTCTimestamp) => {
+          const date = new Date((time as number) * 1000);
+          return date.toLocaleTimeString('en-IN', {
+            timeZone: timezone === 'UTC' ? 'UTC' : 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+        }
+      }
     });
 
     chartRef.current = chart;
@@ -93,7 +122,6 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
         lineWidth: 2,
       });
     } else {
-      // candle, renko, and range all use CandlestickSeries
       seriesRef.current = chart.addSeries(CandlestickSeries, {
         upColor: '#26a69a',
         downColor: '#ef5350',
@@ -120,9 +148,26 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
       title: 'SMA 20',
     });
 
-    if (onCrosshairMove) {
-      chart.subscribeCrosshairMove(onCrosshairMove);
-    }
+    const handleCrosshairMove = (param: MouseEventParams) => {
+      if (onCrosshairMove) onCrosshairMove(param);
+
+      if (isSyncEnabled && param.time && param.point) {
+        broadcast({
+          crosshair: {
+            time: param.time as any,
+            price: seriesRef.current?.coordinateToPrice(param.point.y) ?? undefined,
+          }
+        });
+      }
+    };
+
+    chart.subscribeCrosshairMove(handleCrosshairMove);
+
+    chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (isSyncEnabled && range) {
+        broadcast({ logicalRange: range });
+      }
+    });
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -146,9 +191,24 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
     return () => {
       setIsChartReady(false);
       resizeObserver.disconnect();
+      chart.unsubscribeCrosshairMove(handleCrosshairMove);
       chart.remove();
     };
-  }, [type, onCrosshairMove, isDarkMode]);
+  }, [type, onCrosshairMove, isDarkMode, isSyncEnabled, broadcast, timezone]);
+
+  // Sync Listener
+  useEffect(() => {
+    if (!isSyncEnabled || !chartRef.current || !seriesRef.current) return;
+
+    return handleSync((state) => {
+      if (state.logicalRange) {
+        chartRef.current?.timeScale().setVisibleLogicalRange(state.logicalRange);
+      }
+      if (state.crosshair && state.crosshair.time) {
+        chartRef.current?.setCrosshairPosition(0, state.crosshair.time as any, seriesRef.current!);
+      }
+    });
+  }, [isSyncEnabled, isChartReady, handleSync]);
 
   // Data Updates
   useEffect(() => {
