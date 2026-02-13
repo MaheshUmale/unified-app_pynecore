@@ -23,6 +23,7 @@ except ImportError:
 socketio_instance = None
 main_event_loop = None
 latest_total_volumes = {}
+latest_prices = {}
 # Track subscribers per (instrumentKey, interval)
 room_subscribers = {} # (instrumentKey, interval) -> set of sids
 
@@ -90,12 +91,14 @@ def on_message(message: Union[Dict, str]):
 
         for inst_key, feed_datum in feeds_map.items():
             # Use technical symbol as is
+            last_price = float(feed_datum.get('last_price', 0))
             feed_datum.update({
                 'instrumentKey': inst_key,
                 'date': today_str,
-                'last_price': float(feed_datum.get('last_price', 0)),
+                'last_price': last_price,
                 'source': feed_datum.get('source', 'tv_wss')
             })
+            latest_prices[inst_key] = last_price
 
             ts_val = feed_datum.get('ts_ms', int(time.time() * 1000))
             if 0 < ts_val < 10000000000: ts_val *= 1000

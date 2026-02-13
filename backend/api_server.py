@@ -6,8 +6,9 @@ Provides high-performance data for the TradingView-mimic charting frontend.
 import os
 import asyncio
 import logging
+from datetime import datetime, timezone
 from logging.config import dictConfig
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Dict
 import socketio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -23,6 +24,128 @@ from core.options_provider import options_provider
 from external.tv_api import tv_api
 from db.local_db import db
 
+def calculate_max_pain(chain: List[Dict[str, Any]]) -> float:
+    """Calculates the strike price where option buyers lose the most."""
+    if not chain: return 0.0
+
+    strikes = [item['strike'] for item in chain]
+    min_payout = float('inf')
+    max_pain_strike = strikes[0]
+
+    for s in strikes:
+        current_payout = 0
+        for item in chain:
+            strike = item['strike']
+            # Call Payout: Buyer wins if price > strike
+            current_payout += max(0, s - strike) * item['call']['oi']
+            # Put Payout: Buyer wins if price < strike
+            current_payout += max(0, strike - s) * item['put']['oi']
+
+        if current_payout < min_payout:
+            min_payout = current_payout
+            max_pain_strike = s
+
+    return float(max_pain_strike)
+
+async def snapshot_task():
+    """Background task to take periodic snapshots of option chains."""
+    from config import OPTIONS_UNDERLYINGS, SNAPSHOT_CONFIG
+    interval = SNAPSHOT_CONFIG.get("interval_seconds", 180)
+
+    while True:
+        logger.info("Starting options snapshot cycle...")
+        for symbol in OPTIONS_UNDERLYINGS:
+            try:
+                # 1. Fetch current spot price
+                # Prefer latest price from WSS/ticks, fallback to historical API
+                from core.data_engine import latest_prices
+                if symbol in latest_prices:
+                    spot_price = latest_prices[symbol]
+                    logger.debug(f"Using live price for {symbol}: {spot_price}")
+                else:
+                    try:
+                        # Use a shorter count to speed up
+                        res = await asyncio.to_thread(tv_api.get_hist_candles, symbol, "1", 1)
+                        if res and len(res) > 0:
+                            spot_price = float(res[0][4])
+                        else:
+                            # Fallback to simulation if both fail
+                            import random
+                            if "BANKNIFTY" in symbol:
+                                spot_price = 48000.0 + random.uniform(-100, 100)
+                            elif "FINNIFTY" in symbol:
+                                spot_price = 23000.0 + random.uniform(-50, 50)
+                            elif "NIFTY" in symbol:
+                                spot_price = 22000.0 + random.uniform(-50, 50)
+                            else:
+                                spot_price = 100.0
+                    except Exception as e:
+                        logger.warning(f"Error fetching spot for {symbol}: {e}")
+                        spot_price = 22000.0 if "BANKNIFTY" not in symbol and "NIFTY" in symbol else 48000.0 if "BANK" in symbol else 23000.0
+
+                # 2. Get option chain (includes PCR)
+                data = options_provider.get_option_chain(symbol, spot_price)
+
+                # 3. Calculate Max Pain
+                max_pain = calculate_max_pain(data['chain'])
+
+                # 4. Prepare PCR History Record
+                total_oi = data['total_call_oi'] + data['total_put_oi']
+
+                # Fetch last total_oi for change calculation
+                last_res = db.query("SELECT total_oi FROM pcr_history WHERE underlying = ? ORDER BY timestamp DESC LIMIT 1", (symbol,))
+                total_oi_change = (total_oi - last_res[0]['total_oi']) if last_res else 0
+
+                record = {
+                    "timestamp": datetime.now(timezone.utc),
+                    "underlying": symbol,
+                    "pcr_oi": data['pcr'],
+                    "pcr_vol": round(data['total_put_vol'] / data['total_call_vol'], 3) if data['total_call_vol'] > 0 else 0,
+                    "pcr_oi_change": data['pcr_change'],
+                    "underlying_price": spot_price,
+                    "max_pain": max_pain,
+                    "spot_price": spot_price,
+                    "total_oi": total_oi,
+                    "total_oi_change": total_oi_change
+                }
+
+                db.insert_pcr_history(record)
+
+                # 5. Insert full snapshots for detailed analysis
+                snapshot_data = []
+                for item in data['chain']:
+                    for opt_type in ['call', 'put']:
+                        leg = item[opt_type]
+                        # Intrinsic value calculation
+                        intrinsic = max(0, spot_price - item['strike']) if opt_type == 'call' else max(0, item['strike'] - spot_price)
+
+                        snapshot_data.append({
+                            "timestamp": record['timestamp'],
+                            "underlying": symbol,
+                            "symbol": f"{symbol}_{item['strike']}_{opt_type.upper()}",
+                            "expiry": data['expiry'],
+                            "strike": item['strike'],
+                            "option_type": opt_type.upper(),
+                            "oi": leg['oi'],
+                            "oi_change": int(leg['oi_change']),
+                            "volume": leg['volume'],
+                            "ltp": leg['ltp'],
+                            "iv": leg['iv'],
+                            "delta": leg['delta'],
+                            "gamma": leg.get('gamma', 0),
+                            "theta": leg['theta'],
+                            "vega": leg['vega'],
+                            "intrinsic_value": intrinsic,
+                            "time_value": max(0, leg['ltp'] - intrinsic),
+                            "source": "simulated"
+                        })
+                db.insert_options_snapshot(snapshot_data)
+
+                logger.info(f"PCR snapshot saved for {symbol}")
+            except Exception as e:
+                logger.error(f"Snapshot Error for {symbol}: {e}")
+
+        await asyncio.sleep(interval)
 # Create logs directory if it doesn't exist
 os.makedirs("logs", exist_ok=True)
 
@@ -49,6 +172,9 @@ async def lifespan(app: FastAPI):
     # Start WebSocket Feed
     logger.info("Starting TradingView WebSocket feed...")
     data_engine.start_websocket_thread(None, INITIAL_INSTRUMENTS)
+
+    # Start Snapshot Background Task
+    asyncio.create_task(snapshot_task())
 
     yield
 
@@ -147,6 +273,24 @@ async def tv_search(text: str = Query(..., min_length=1)):
         logger.error(f"Search proxy error: {e}")
 
     return {"symbols": []}
+
+@fastapi_app.get("/api/options/pcr-trend/{underlying}")
+async def get_pcr_trend(underlying: str):
+    """Returns historical PCR data for current trading day."""
+    try:
+        clean_key = unquote(underlying)
+        # Query pcr_history for the current day (UTC based)
+        sql = """
+            SELECT * FROM pcr_history
+            WHERE underlying = ?
+            AND timestamp >= CURRENT_DATE
+            ORDER BY timestamp ASC
+        """
+        res = db.query(sql, (clean_key,), json_serialize=True)
+        return res
+    except Exception as e:
+        logger.error(f"Error fetching PCR trend for {underlying}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @fastapi_app.get("/api/options-chain")
 async def get_options_chain(symbol: str = "NSE:NIFTY"):

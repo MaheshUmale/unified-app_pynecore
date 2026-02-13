@@ -6,24 +6,28 @@ from datetime import datetime, timedelta
 
 class OptionsProvider:
     def __init__(self):
-        # Track history for charts
-        # Format: {"time": ts, "pcr": val, "spot": val, "total_oi": val}
-        self.history = []
-        self._generate_initial_history()
+        # Track history for charts per symbol
+        # Format: {symbol: [{"time": ts, "pcr": val, "spot": val, "total_oi": val}]}
+        self.histories = {}
+        self._generate_initial_history("NSE:NIFTY", 22000.0)
+        self._generate_initial_history("NSE:BANKNIFTY", 48000.0)
+        self._generate_initial_history("NSE:FINNIFTY", 23000.0)
 
-    def _generate_initial_history(self):
+    def _generate_initial_history(self, symbol: str, base_spot: float):
         now = int(time.time())
-        spot = 22000.0
+        spot = base_spot
+        history = []
         for i in range(50):
             ts = now - (50 - i) * 60 # 1 minute intervals
             spot += random.uniform(-20, 20)
             pcr = round(random.uniform(0.7, 1.3), 2)
-            self.history.append({
+            history.append({
                 "time": ts,
                 "pcr": pcr,
                 "spot": round(spot, 2),
                 "total_oi": random.randint(1000000, 2000000)
             })
+        self.histories[symbol] = history
 
     def get_option_chain(self, symbol: str, spot_price: float) -> Dict[str, Any]:
         """
@@ -42,7 +46,7 @@ class OptionsProvider:
         today = datetime.now()
         days_until_thursday = (3 - today.weekday()) % 7
         if days_until_thursday == 0: days_until_thursday = 7
-        expiry_date = (today + timedelta(days=days_until_thursday)).strftime("%d-%b-%Y")
+        expiry_date = (today + timedelta(days=days_until_thursday)).strftime("%Y-%m-%d")
 
         chain = []
         iv_base = 15.0 + random.uniform(-1, 1)
@@ -114,7 +118,12 @@ class OptionsProvider:
 
         pcr = round(total_put_oi / total_call_oi, 3) if total_call_oi > 0 else 0
 
-        # Update history
+        # Update history for specific symbol
+        if symbol not in self.histories:
+            self.histories[symbol] = []
+
+        symbol_history = self.histories[symbol]
+
         new_entry = {
             "time": int(time.time()),
             "pcr": pcr,
@@ -123,22 +132,22 @@ class OptionsProvider:
             "total_vol": total_call_vol + total_put_vol
         }
 
-        if not self.history or new_entry["time"] > self.history[-1]["time"] + 10:
-            self.history.append(new_entry)
-            if len(self.history) > 100: self.history.pop(0)
+        if not symbol_history or new_entry["time"] > symbol_history[-1]["time"] + 10:
+            symbol_history.append(new_entry)
+            if len(symbol_history) > 100: symbol_history.pop(0)
 
         return {
             "symbol": symbol,
             "spot": spot_price,
             "expiry": expiry_date,
             "pcr": pcr,
-            "pcr_change": round(pcr - self.history[-2]["pcr"], 3) if len(self.history) > 1 else 0,
+            "pcr_change": round(pcr - symbol_history[-2]["pcr"], 3) if len(symbol_history) > 1 else 0,
             "total_call_oi": total_call_oi,
             "total_put_oi": total_put_oi,
             "total_call_vol": total_call_vol,
             "total_put_vol": total_put_vol,
             "chain": chain,
-            "history": self.history
+            "history": symbol_history
         }
 
 options_provider = OptionsProvider()
